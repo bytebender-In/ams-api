@@ -1,0 +1,117 @@
+model User {
+  id                    Int        @id @default(autoincrement())
+  uuid                  String     @unique @default(uuid())
+  email                 String     @unique
+  phone_number          String?    @unique
+  username              String?    @unique
+  password_hash         String
+  first_name            String
+  last_name             String
+  profile_picture       String?
+  gender                Gender
+  date_of_birth         DateTime?
+  language              String     @default("en")
+  timezone              String     @default("UTC")
+  status                UserStatus @default(active)
+  email_verified        Boolean    @default(false)
+  phone_verified        Boolean    @default(false)
+  last_login_at         DateTime?
+  failed_login_attempts Int        @default(0)
+  last_failed_login_at  DateTime?
+  created_at            DateTime   @default(now())
+  updated_at            DateTime   @updatedAt
+  deleted_at            DateTime?
+  role_id               Int
+
+  role                  Role       @relation(fields: [role_id], references: [id])
+  assignedRoles         UserRole[] @relation("AssignedBy")
+  verifications         UserVerification[]
+  permissions           UserPermission[]
+  userRoles             UserRole[]
+  subscriptions         Subscription[]
+}
+
+model UserPermission {
+  id            Int      @id @default(autoincrement())
+  user_id       Int
+  permission_id Int
+  granted_at    DateTime @default(now())
+
+  user       User       @relation(fields: [user_id], references: [id])
+  permission Permission @relation(fields: [permission_id], references: [id])
+}
+
+model Role {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  deleted_at  DateTime?
+
+  users       User[]
+  permissions RolePermission[]
+  userRoles   UserRole[]
+}
+
+model Permission {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  deleted_at  DateTime?
+
+  roles RolePermission[]
+  users UserPermission[]
+}
+
+model UserRole {
+  id          Int      @id @default(autoincrement())
+  user_id     Int
+  role_id     Int
+  assigned_by Int?
+  assigned_at DateTime @default(now())
+
+  user       User  @relation(fields: [user_id], references: [id])
+  role       Role  @relation(fields: [role_id], references: [id])
+  assignedBy User? @relation("AssignedBy", fields: [assigned_by], references: [id])
+}
+
+model RolePermission {
+  id            Int      @id @default(autoincrement())
+  role_id       Int
+  permission_id Int
+  granted_at    DateTime @default(now())
+
+  role       Role       @relation(fields: [role_id], references: [id])
+  permission Permission @relation(fields: [permission_id], references: [id])
+}
+
+model UserVerification {
+  id                 Int      @id @default(autoincrement())
+  user_id            Int
+  otp                String
+  otp_expiry         DateTime
+  verification_token String?
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id])
+}
+
+
+// Enums for gender and user status
+
+enum Gender {
+  male
+  female
+  other
+}
+
+enum UserStatus {
+  active
+  inactive
+  suspended
+  deleted
+}
