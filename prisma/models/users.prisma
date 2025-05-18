@@ -21,9 +21,9 @@ model User {
   created_at            DateTime   @default(now())
   updated_at            DateTime   @updatedAt
   deleted_at            DateTime?
-  role_id               Int
+  role_id               Int?
 
-  role                  Role       @relation(fields: [role_id], references: [id])
+  role                  Role?       @relation(fields: [role_id], references: [id])
   assignedRoles         UserRole[] @relation("AssignedBy")
   verifications         UserVerification[]
   permissions           UserPermission[]
