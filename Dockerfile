@@ -1,23 +1,29 @@
-# Use stable Node version (matches your engines field)
+# Use stable Node version
 FROM node:20-alpine
 
 # Set working directory
 WORKDIR /app
 
-# Copy only package.json + lock first (for better Docker caching)
+# Copy only package files first (for caching)
 COPY package.json package-lock.json ./
 
-# Install dependencies with npm ci (strict + clean)
+# Install dependencies
 RUN npm ci
 
-# Copy rest of your codebase
+# Copy Prisma schema files (assuming in /prisma)
+COPY prisma ./prisma
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Copy the rest of the source code
 COPY . .
 
 # Build the application
 RUN npm run build
 
-# Expose port (default for NestJS)
+# Expose NestJS default port
 EXPOSE 3000
 
-# Run the app in production mode
+# Run the app
 CMD ["node", "dist/main"]
