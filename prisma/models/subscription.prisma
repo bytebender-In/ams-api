@@ -1,0 +1,35 @@
+model Subscription {
+  id         Int                @id @default(autoincrement())
+  suid       String             @unique @default(uuid())
+  user_id    Int
+  plan_id    Int
+  start_date DateTime
+  end_date   DateTime
+  status     SubscriptionStatus @default(active)
+  created_at DateTime           @default(now())
+
+  updated_at DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id])
+  plan Plan @relation(fields: [plan_id], references: [id])
+}
+
+model Plan {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  content     String?
+  price       Float
+  duration    Int
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  subscriptions Subscription[]
+}
+
+enum SubscriptionStatus {
+  active
+  inactive
+  cancelled
+  expired
+}
