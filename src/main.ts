@@ -23,11 +23,12 @@ async function bootstrap() {
   .setTitle('AMS API')
   .setDescription('API documentation for Adaptive Management System')
   .setVersion('1.0')
+  .addTag('User Management', 'Endpoints for managing users, roles, permissions')
   .addBearerAuth()
   .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('docs', app, document);
   // Apply Prisma exception filter globally
   app.useGlobalFilters(new PrismaClientExceptionFilter())
 

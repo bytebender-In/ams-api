@@ -5,11 +5,11 @@ import {
     HttpCode,
     HttpStatus,
   } from '@nestjs/common';
-  import { CreateUserDto } from './dto/create-user.dto';
   import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UserService } from './user.service';
+import { CreateUserDto } from './dto/create-user.dto';
   
-  @ApiTags('Users')
+@ApiTags('User Management')
   @Controller('users')
   export class UserController {
     constructor(private readonly userService: UserService) {}

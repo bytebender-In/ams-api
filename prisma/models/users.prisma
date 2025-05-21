@@ -21,14 +21,11 @@ model User {
   created_at            DateTime   @default(now())
   updated_at            DateTime   @updatedAt
   deleted_at            DateTime?
-  role_id               Int?
 
-  role                  Role?       @relation(fields: [role_id], references: [id])
-  assignedRoles         UserRole[] @relation("AssignedBy")
-  verifications         UserVerification[]
-  permissions           UserPermission[]
-  userRoles             UserRole[]
-  subscriptions         Subscription[]
+  role          UserRole[]
+  permissions   UserPermission[]
+  subscriptions Subscription[]
+  verifications UserVerification[]
 }
 
 model UserPermission {
@@ -42,50 +39,50 @@ model UserPermission {
 }
 
 model Role {
-  id          Int       @id @default(autoincrement())
-  name        String    @unique
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
   description String?
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
-  deleted_at  DateTime?
-
-  users       User[]
+  level         Int      @default(10)
   permissions RolePermission[]
-  userRoles   UserRole[]
+  users       UserRole[]
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  organizationId Int?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
 }
 
 model Permission {
-  id          Int       @id @default(autoincrement())
-  name        String    @unique
-  description String?
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
-  deleted_at  DateTime?
+  id             Int              @id @default(autoincrement())
+  name           String           @unique
+  module         String
+  action         String
+  description    String?
+  created_at     DateTime         @default(now())
+  updated_at     DateTime         @updatedAt
+  UserPermission UserPermission[]
+  RolePermission RolePermission[]
 
-  roles RolePermission[]
-  users UserPermission[]
+  organizationId  Int?        
+  organization    Organization? @relation(fields: [organizationId], references: [id])
 }
 
 model UserRole {
   id          Int      @id @default(autoincrement())
-  user_id     Int
-  role_id     Int
-  assigned_by Int?
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int
+  role        Role     @relation(fields: [roleId], references: [id])
+  roleId      Int
   assigned_at DateTime @default(now())
-
-  user       User  @relation(fields: [user_id], references: [id])
-  role       Role  @relation(fields: [role_id], references: [id])
-  assignedBy User? @relation("AssignedBy", fields: [assigned_by], references: [id])
 }
 
 model RolePermission {
-  id            Int      @id @default(autoincrement())
-  role_id       Int
-  permission_id Int
-  granted_at    DateTime @default(now())
-
-  role       Role       @relation(fields: [role_id], references: [id])
-  permission Permission @relation(fields: [permission_id], references: [id])
+  id           Int        @id @default(autoincrement())
+  role         Role       @relation(fields: [roleId], references: [id])
+  roleId       Int
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  permissionId Int
 }
 
 model UserVerification {
@@ -99,7 +96,6 @@ model UserVerification {
 
   user User @relation(fields: [user_id], references: [id])
 }
-
 
 // Enums for gender and user status
 
