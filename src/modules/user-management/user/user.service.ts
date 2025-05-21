@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UserResponseDto } from './dto/user-response.dto'; // adjust path if needed
+import { UserResponseDto } from './dto/user-response.dto';
 import { DatabaseService } from 'src/core/database/database.service';
 import * as bcrypt from 'bcrypt';
 
