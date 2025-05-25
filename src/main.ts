@@ -16,7 +16,7 @@ async function bootstrap() {
     .setVersion('1.0')
     .addTag(
       'User Management',
-      'Endpoints for managing users, roles, permissions',
+      // 'Endpoints for managing users, roles, permissions',
     )
     .addBearerAuth()
     .build();

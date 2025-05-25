@@ -1,26 +1,27 @@
 import {
-    Controller,
-    Post,
-    Body,
-    HttpCode,
-    HttpStatus,
-  } from '@nestjs/common';
-  import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+  Controller,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Get,
+  Request,
+} from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UserService } from './user.service';
-import { CreateUserDto } from './dto/create-user.dto';
-  
+import { Auth } from '../auth/decorators/auth.decorator';
+import { UserResponseDto } from '../auth/dto/user-response.dto';
+
 @ApiTags('User Management')
-  @Controller('users')
-  export class UserController {
-    constructor(private readonly userService: UserService) {}
-  
-    @Post()
-    @HttpCode(HttpStatus.CREATED)
-    @ApiOperation({ summary: 'Create a new user' })
-    @ApiResponse({ status: 201, description: 'User created successfully' })
-    @ApiResponse({ status: 400, description: 'Validation error' })
-    async create(@Body() createUserDto: CreateUserDto) {
-      return this.userService.create(createUserDto);
-    }
+@Controller('users')
+export class UserController {
+  constructor(private readonly userService: UserService) {}
+
+  @Get('profile')
+  @Auth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({ status: 200, type: UserResponseDto })
+  async getProfile(@Request() req): Promise<UserResponseDto> {
+    return this.userService.findByUuid(req.user.uuid);
   }
-  
+}

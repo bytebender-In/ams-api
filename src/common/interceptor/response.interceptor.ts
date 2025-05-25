@@ -26,9 +26,20 @@ import {
   
       return next.handle().pipe(
         map((data) => {
+          const message = data?.message || 'Success';
+          
+          if (data?.message) {
+            const { message: _, ...restData } = data;
+            return {
+              statusCode: res.statusCode,
+              message,
+              data: restData,
+            };
+          }
+  
           return {
             statusCode: res.statusCode,
-            message: data?.message || 'Success',
+            message,
             data,
           };
         }),

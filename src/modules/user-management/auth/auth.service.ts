@@ -2,21 +2,25 @@ import {
   Injectable,
   BadRequestException,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
-import { LoginDto } from './dto/signin.dto';
 import { JwtService } from '@nestjs/jwt';
-
+import { ConfigService } from '@nestjs/config';
+import { LoginDto } from './dto/signin.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
+import { AuthResponseDto } from './dto/auth-response.dto';
 import { PrismaService } from '@/core/database/prisma.service';
-import { comparePassword, hashPassword } from '@/common/utils/crypto.utils';
+import { hashPassword, comparePassword } from '@/common/utils/crypto.utils';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
-    // private jwtService: JwtService,
+    private jwtService: JwtService,
+    private configService: ConfigService,
   ) {}
 
   async signup(createUserDto: CreateUserDto) {
@@ -72,7 +76,7 @@ export class AuthService {
     return responseDto;
   }
 
-  async signin(loginDto: LoginDto) {
+  async signin(loginDto: LoginDto): Promise<AuthResponseDto> {
     const { identifier, password } = loginDto;
 
     const user = await this.prisma.user.findFirst({
@@ -94,8 +98,30 @@ export class AuthService {
       throw new UnauthorizedException('Incorrect password. Please try again');
     }
 
-    const payload = { sub: user.uuid };
-    // const access_token = await this.jwtService.signAsync(payload);
+    const accessTokenExpiration = this.configService.get('auth.jwtExpiration');
+    const refreshTokenExpiration = this.configService.get('auth.refreshTokenExpiration');
+    const jwtSecret = this.configService.get('auth.jwtSecret');
+
+    this.logger.debug(`JWT Configuration:`);
+    this.logger.debug(`- JWT Secret: ${jwtSecret}`);
+    this.logger.debug(`- Access Token Expiration: ${accessTokenExpiration}`);
+    this.logger.debug(`- User UUID: ${user.uuid}`);
+
+    const [access_token, refresh_token] = await Promise.all([
+      this.jwtService.signAsync(
+        { sub: user.uuid },
+        { expiresIn: accessTokenExpiration }
+      ),
+      this.jwtService.signAsync(
+        { sub: user.uuid },
+        { 
+          secret: this.configService.get('auth.refreshTokenSecret'),
+          expiresIn: refreshTokenExpiration
+        }
+      ),
+    ]);
+
+    this.logger.debug(`Generated Access Token: ${access_token}`);
 
     const response: UserResponseDto = {
       uuid: user.uuid,
@@ -111,10 +137,33 @@ export class AuthService {
       phone_verified: user.phone_verified,
     };
 
+    // Convert expiration times to seconds
+    const accessTokenExpiresIn = this.parseExpirationToSeconds(accessTokenExpiration);
+    const refreshTokenExpiresIn = this.parseExpirationToSeconds(refreshTokenExpiration);
+
     return {
-      message: 'Login successful',
-      // access_token: access_token,
+      message:"Login successful",
+      access_token,
+      refresh_token,
+      access_token_expires_in: accessTokenExpiresIn,
+      refresh_token_expires_in: refreshTokenExpiresIn,
       user: response,
     };
+  }
+
+  private parseExpirationToSeconds(expiration: string): number {
+    const match = expiration.match(/^(\d+)([smhd])$/);
+    if (!match) return 0;
+
+    const [, value, unit] = match;
+    const numValue = parseInt(value, 10);
+
+    switch (unit) {
+      case 's': return numValue;
+      case 'm': return numValue * 60;
+      case 'h': return numValue * 3600;
+      case 'd': return numValue * 86400;
+      default: return 0;
+    }
   }
 }
