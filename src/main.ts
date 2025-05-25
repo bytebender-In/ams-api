@@ -31,7 +31,7 @@ async function bootstrap() {
   // Get PrismaService instance
   const prismaService = app.get(PrismaService);
 
-  // ✅ Simple /health route for health check (like Render, Docker, etc.)
+  // Simple /health route for health check (like Render, Docker, etc.)
   app.getHttpAdapter().get('/health', async (_, res) => {
     const dbStatus = await prismaService.checkConnection();
     res.json({
