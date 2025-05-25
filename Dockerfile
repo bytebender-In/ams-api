@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install dependencies
+# Install ALL dependencies (including devDependencies)
 RUN npm ci
 
 # Generate Prisma client
@@ -19,8 +19,9 @@ COPY . .
 # Build the app
 RUN npm run build
 
-# Verify build output exists
+# Verify build output exists and show contents
 RUN ls -la dist/
+RUN ls -la dist/src/
 
 # Production stage
 FROM node:20-alpine
@@ -42,6 +43,7 @@ COPY --from=builder /app/dist ./dist
 
 # Verify files are copied correctly
 RUN ls -la dist/
+RUN ls -la dist/src/
 
 # Set environment variables
 ENV NODE_ENV=production
@@ -51,4 +53,4 @@ ENV PORT=3000
 EXPOSE 3000
 
 # Start the app
-CMD ["node", "dist/main"]
+CMD ["node", "dist/src/main"]
