@@ -27,6 +27,9 @@ async function bootstrap() {
   app.useGlobalInterceptors(new ResponseInterceptor());
   app.useLogger(['debug', 'error', 'fatal', 'log', 'verbose', 'warn']);
 
+  // ✅ Simple /health route for health check (like Render, Docker, etc.)
+  app.getHttpAdapter().get('/health', (_, res) => res.send('OK'));
+
   const port = process.env.PORT || 3000;
   await app.listen(port);
 }
