@@ -7,7 +7,7 @@ model User {
   first_name            String
   last_name             String
   profile_picture       String?
-  gender                Gender
+  gender                Gender?
   date_of_birth         DateTime?
   language              String           @default("en")
   timezone              String           @default("UTC")

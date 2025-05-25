@@ -11,7 +11,7 @@ import {
   IsBoolean,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Gender, UserStatus } from 'generated/prisma';
+import { Gender, UserStatus } from '@prisma/client';
 
 export class CreateUserDto {
   @ApiProperty({ description: 'User email address', type: String })
