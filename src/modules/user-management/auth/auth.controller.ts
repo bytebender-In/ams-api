@@ -1,8 +1,9 @@
 import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
+import { LoginDto } from './dto/signin.dto';
 
 @ApiTags('Authentication')
 @Controller('/auth')
@@ -18,17 +19,16 @@ export class AuthController {
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'User signup' })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'User successfully created',
-    type: UserResponseDto,
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Validation error or user already exists',
-  })
   async signup(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
     const user = await this.authService.signup(createUserDto);
+    return user;
+  }
+
+  @Post('signin')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'User signup' })
+  async signin(@Body() LoginDto: LoginDto): Promise<UserResponseDto> {
+    const { user } = await this.authService.signin(LoginDto);
     return user;
   }
 }

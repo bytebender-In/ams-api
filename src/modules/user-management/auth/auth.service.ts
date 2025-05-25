@@ -4,13 +4,13 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { LoginDto } from './dto/login.dto';
+import { LoginDto } from './dto/signin.dto';
 import { JwtService } from '@nestjs/jwt';
 
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { PrismaService } from '@/core/database/prisma.service';
-import { hashPassword } from '@/common/utils/crypto.utils';
+import { comparePassword, hashPassword } from '@/common/utils/crypto.utils';
 
 @Injectable()
 export class AuthService {
@@ -72,7 +72,7 @@ export class AuthService {
     return responseDto;
   }
 
-  async login(loginDto: LoginDto) {
+  async signin(loginDto: LoginDto) {
     const { identifier, password } = loginDto;
 
     const user = await this.prisma.user.findFirst({
@@ -86,12 +86,12 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('User does not exist');
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    const isPasswordValid = await comparePassword(password, user.password_hash);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Incorrect password. Please try again');
     }
 
     const payload = { sub: user.uuid };
