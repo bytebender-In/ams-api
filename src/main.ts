@@ -33,13 +33,13 @@ async function bootstrap() {
   app.useGlobalInterceptors(new ResponseInterceptor());
 
   // Logger
-app.useLogger(['debug','error','fatal','log','verbose','warn'])
+  app.useLogger(['debug', 'error', 'fatal', 'log', 'verbose', 'warn']);
 
   app.setGlobalPrefix('v1');
 
-  await app.listen(process.env.PORT ?? 3000);
-  console.log(
-    `Application running at http://localhost:${process.env.PORT ?? 3000}/`,
-  );
+  await app.listen(process.env.PORT || 3000, '0.0.0.0');
+  // console.log(
+  //   `Application running at http://localhost:${process.env.PORT ?? 3000}/`,
+  // );
 }
 bootstrap();
