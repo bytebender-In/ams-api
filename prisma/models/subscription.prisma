@@ -10,7 +10,6 @@ model Subscription {
 
   updated_at DateTime @updatedAt
 
-  user User @relation(fields: [user_id], references: [id])
   plan Plan @relation(fields: [plan_id], references: [id])
 }
 

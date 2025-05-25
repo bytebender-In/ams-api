@@ -1,7 +1,0 @@
-model Organization {
-    id          Int          @id @default(autoincrement())
-    slug        String       @unique
-    name        String
-    permissions Permission[]
-    roles       Role[]
-}
