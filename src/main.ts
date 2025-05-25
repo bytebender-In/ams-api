@@ -14,7 +14,10 @@ async function bootstrap() {
     .setTitle('AMS API')
     .setDescription('API documentation for Adaptive Management System')
     .setVersion('1.0')
-    .addTag('User Management', 'Endpoints for managing users, roles, permissions')
+    .addTag(
+      'User Management',
+      'Endpoints for managing users, roles, permissions',
+    )
     .addBearerAuth()
     .build();
 
@@ -27,10 +30,16 @@ async function bootstrap() {
   // Use global validation pipe
   app.useGlobalPipes(new CustomValidationPipe());
   app.useGlobalFilters(new GlobalExceptionFilter());
-app.useGlobalInterceptors(new ResponseInterceptor);
+  app.useGlobalInterceptors(new ResponseInterceptor());
+
+  // Logger
+app.useLogger(['debug','error','fatal','log','verbose','warn'])
+
   app.setGlobalPrefix('v1');
 
   await app.listen(process.env.PORT ?? 3000);
-  console.log(`Application running at http://localhost:${process.env.PORT ?? 3000}/`);
+  console.log(
+    `Application running at http://localhost:${process.env.PORT ?? 3000}/`,
+  );
 }
 bootstrap();
