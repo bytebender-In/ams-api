@@ -5,15 +5,22 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+COPY prisma ./prisma/
 
 # Install dependencies
 RUN npm ci
 
+# Generate Prisma client
+RUN npx prisma generate
+
 # Copy source code
 COPY . .
 
-# Generate Prisma client and build the app
+# Build the app
 RUN npm run build
+
+# Verify build output exists
+RUN ls -la dist/
 
 # Production stage
 FROM node:20-alpine
@@ -22,13 +29,19 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+COPY prisma ./prisma/
 
 # Install production dependencies only
 RUN npm ci --only=production
 
+# Generate Prisma client in production
+RUN npx prisma generate
+
 # Copy built assets from builder stage
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# Verify files are copied correctly
+RUN ls -la dist/
 
 # Set environment variables
 ENV NODE_ENV=production
