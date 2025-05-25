@@ -5,6 +5,7 @@ import { PrismaClientExceptionFilter } from './core/database/prisma-client-excep
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { CustomValidationPipe } from './common/pipe/custom-validation.pipe';
 import { ResponseInterceptor } from './common/interceptor/response.interceptor';
+import { PrismaService } from './core/database/prisma.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -27,8 +28,18 @@ async function bootstrap() {
   app.useGlobalInterceptors(new ResponseInterceptor());
   app.useLogger(['debug', 'error', 'fatal', 'log', 'verbose', 'warn']);
 
+  // Get PrismaService instance
+  const prismaService = app.get(PrismaService);
+
   // ✅ Simple /health route for health check (like Render, Docker, etc.)
-  app.getHttpAdapter().get('/health', (_, res) => res.send('OK'));
+  app.getHttpAdapter().get('/health', async (_, res) => {
+    const dbStatus = await prismaService.checkConnection();
+    res.json({
+      status: 'OK',
+      database: dbStatus ? 'connected' : 'disconnected',
+      timestamp: new Date().toISOString()
+    });
+  });
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
