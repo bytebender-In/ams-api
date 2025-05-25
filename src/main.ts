@@ -28,7 +28,6 @@ async function bootstrap() {
   app.useLogger(['debug', 'error', 'fatal', 'log', 'verbose', 'warn']);
 
   const port = process.env.PORT || 3000;
-  await app.listen(port, '0.0.0.0');
-  console.log(`🚀 App running on http://0.0.0.0:${port}`);
+  await app.listen(port);
 }
 bootstrap();

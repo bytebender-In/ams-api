@@ -13,8 +13,11 @@ RUN npm ci
 # Copy rest of the app source code
 COPY . .
 
-# Build the NestJS app (transpile TS to JS)
+# Build the app (this creates `dist/`)
 RUN npm run build
+
+# Ensure the build was successful
+RUN ls -la dist/
 
 # Expose the port your NestJS app listens on
 EXPOSE 3000
