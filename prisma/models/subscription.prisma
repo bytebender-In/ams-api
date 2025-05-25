@@ -7,22 +7,19 @@ model Subscription {
   end_date   DateTime
   status     SubscriptionStatus @default(active)
   created_at DateTime           @default(now())
-
-  updated_at DateTime @updatedAt
-
-  plan Plan @relation(fields: [plan_id], references: [id])
+  updated_at DateTime           @updatedAt
+  plan       Plan               @relation(fields: [plan_id], references: [id])
 }
 
 model Plan {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
-  description String?
-  content     String?
-  price       Float
-  duration    Int
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-
+  id            Int            @id @default(autoincrement())
+  name          String         @unique
+  description   String?
+  content       String?
+  price         Float
+  duration      Int
+  created_at    DateTime       @default(now())
+  updated_at    DateTime       @updatedAt
   subscriptions Subscription[]
 }
 

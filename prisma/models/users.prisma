@@ -1,30 +1,29 @@
 model User {
-  uuid                  String           @id @default(uuid())
-  email                 String           @unique
-  phone_number          String?          @unique
-  username              String?          @unique
+  uuid                  String             @id @default(uuid())
+  email                 String             @unique
+  phone_number          String?            @unique
+  username              String?            @unique
   password_hash         String
   first_name            String
   last_name             String
   profile_picture       String?
   gender                Gender?
   date_of_birth         DateTime?
-  language              String           @default("en")
-  timezone              String           @default("UTC")
-  status                UserStatus       @default(active)
-  email_verified        Boolean          @default(false)
-  phone_verified        Boolean          @default(false)
+  language              String             @default("en")
+  timezone              String             @default("UTC")
+  status                UserStatus         @default(active)
+  email_verified        Boolean            @default(false)
+  phone_verified        Boolean            @default(false)
   last_login_at         DateTime?
-  failed_login_attempts Int              @default(0)
+  failed_login_attempts Int                @default(0)
   last_failed_login_at  DateTime?
-  created_at            DateTime         @default(now())
-  updated_at            DateTime         @updatedAt
+  created_at            DateTime           @default(now())
+  updated_at            DateTime           @updatedAt
   deleted_at            DateTime?
-
-  roles            UserRole[]
-  user_permissions UserPermission[]
-  verifications    UserVerification[]
-  user_sessions    UserSession[]
+  user_permissions      UserPermission[]
+  roles                 UserRole[]
+  user_sessions         UserSession[]
+  verifications         UserVerification[]
 
   @@index([uuid])
   @@index([email])
@@ -37,19 +36,17 @@ model UserPermission {
   user_id       String
   permission_id Int
   granted_at    DateTime   @default(now())
-
-  user          User       @relation(fields: [user_id], references: [uuid])
   permission    Permission @relation(fields: [permission_id], references: [id])
+  user          User       @relation(fields: [user_id], references: [uuid])
 }
 
 model UserRole {
   id          Int      @id @default(autoincrement())
-  user_id     String
-  role_id     Int
   assigned_at DateTime @default(now())
-
-  user User @relation(fields: [user_id], references: [uuid])
-  role Role @relation(fields: [role_id], references: [id])
+  role_id     Int
+  user_id     String
+  role        Role     @relation(fields: [role_id], references: [id])
+  user        User     @relation(fields: [user_id], references: [uuid])
 }
 
 model Role {
@@ -57,14 +54,11 @@ model Role {
   name            String           @unique
   description     String?
   level           Int              @default(10)
-  permissions     RolePermission[]
-  users           UserRole[]
   created_at      DateTime         @default(now())
   updated_at      DateTime         @updatedAt
-
   organization_id Int?
-  // Add relation to Organization model if exists, e.g.:
-  // organization Organization? @relation(fields: [organization_id], references: [id])
+  permissions     RolePermission[]
+  users           UserRole[]
 }
 
 model Permission {
@@ -75,20 +69,18 @@ model Permission {
   description      String?
   created_at       DateTime         @default(now())
   updated_at       DateTime         @updatedAt
-
-  user_permissions UserPermission[]
   role_permissions RolePermission[]
+  user_permissions UserPermission[]
 
-  @@unique([module, action]) // prevent duplicate module-action combos
+  @@unique([module, action])
 }
 
 model RolePermission {
   id            Int        @id @default(autoincrement())
-  role_id       Int
   permission_id Int
-
-  role       Role       @relation(fields: [role_id], references: [id])
-  permission Permission @relation(fields: [permission_id], references: [id])
+  role_id       Int
+  permission    Permission @relation(fields: [permission_id], references: [id])
+  role          Role       @relation(fields: [role_id], references: [id])
 }
 
 model UserVerification {
@@ -99,8 +91,7 @@ model UserVerification {
   verification_token String?
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
-
-  user User @relation(fields: [user_id], references: [uuid])
+  user               User     @relation(fields: [user_id], references: [uuid])
 }
 
 model UserSession {
@@ -115,13 +106,10 @@ model UserSession {
   logged_in_at  DateTime  @default(now())
   logged_out_at DateTime?
   expires_at    DateTime
-
-  user User @relation(fields: [user_id], references: [uuid])
+  user          User      @relation(fields: [user_id], references: [uuid])
 
   @@index([user_id])
 }
-
-// Enums
 
 enum Gender {
   male
