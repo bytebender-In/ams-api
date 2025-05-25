@@ -1,26 +1,21 @@
 import { Injectable } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UserResponseDto } from './dto/user-response.dto';
+import { UserResponseDto } from '../auth/dto/user-response.dto';
 import { DatabaseService } from 'src/core/database/database.service';
-import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
   constructor(private readonly db: DatabaseService) {}
 
-  async create(data: CreateUserDto): Promise<UserResponseDto> {
-    const hashedPassword = await bcrypt.hash(data.password_hash, 10);
+  async findByUuid(uuid: string): Promise<UserResponseDto> {
+    const user = await this.db.prismaClient.user.findUnique({
+      where: { uuid },
+    });
 
-    const userData = {
-      ...data,
-      password_hash: hashedPassword,
-    };
+    if (!user) {
+      throw new Error('User not found');
+    }
 
-    const user = await this.db.prismaClient.user.create({ data: userData });
-
-    // Return only the fields defined in UserResponseDto
     const {
-      uuid,
       email,
       phone_number,
       username,
