@@ -6,8 +6,6 @@ model Organization {
     updated_at  DateTime     @updatedAt
 
     members     OrganizationUser[]
-    permissions Permission[]
-    roles       Role[]
 }
 
 model OrganizationUser {
@@ -18,7 +16,6 @@ model OrganizationUser {
     updated_at      DateTime    @updatedAt
 
     organization Organization @relation(fields: [organization_id], references: [id])
-    user         User        @relation(fields: [user_id], references: [uuid])
 
     @@unique([organization_id, user_id])
 }
