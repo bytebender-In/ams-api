@@ -1,29 +1,41 @@
-# Use stable Node.js LTS base image
-FROM node:20-alpine
+# Build stage
+FROM node:20-alpine AS builder
 
-# Set working directory inside container
-WORKDIR /src
+WORKDIR /app
 
-# Install Prisma CLI globally (optional, useful in CI but not strictly needed at runtime)
-# RUN npm install -g prisma
+# Copy package files
+COPY package*.json ./
 
-# Copy only package files first to leverage Docker cache
-COPY package.json package-lock.json ./
-
-# Install dependencies cleanly
+# Install dependencies
 RUN npm ci
 
-# Copy entire source code including Prisma schema and src directory
+# Copy source code
 COPY . .
 
-# Generate Prisma client and build the NestJS app
+# Generate Prisma client and build the app
 RUN npm run build
 
-# Confirm that the build succeeded and dist folder exists
-RUN ls -la dist/
+# Production stage
+FROM node:20-alpine
 
-# Expose the default port NestJS listens on
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install production dependencies only
+RUN npm ci --only=production
+
+# Copy built assets from builder stage
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Expose the port
 EXPOSE 3000
 
-# Start the app (uses dist/main as per your "start:prod" script)
+# Start the app
 CMD ["node", "dist/main"]
