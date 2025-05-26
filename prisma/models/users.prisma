@@ -33,20 +33,20 @@ model User {
 
 model UserPermission {
   id            Int        @id @default(autoincrement())
-  user_id       String
+  userId       String
   permission_id Int
   granted_at    DateTime   @default(now())
   permission    Permission @relation(fields: [permission_id], references: [id])
-  user          User       @relation(fields: [user_id], references: [uuid])
+  user          User       @relation(fields: [userId], references: [uuid])
 }
 
 model UserRole {
   id          Int      @id @default(autoincrement())
   assigned_at DateTime @default(now())
   role_id     Int
-  user_id     String
+  userId     String
   role        Role     @relation(fields: [role_id], references: [id])
-  user        User     @relation(fields: [user_id], references: [uuid])
+  user        User     @relation(fields: [userId], references: [uuid])
 }
 
 model Role {
@@ -85,31 +85,41 @@ model RolePermission {
 
 model UserVerification {
   id                 Int      @id @default(autoincrement())
-  user_id            String
+  userId            String
   otp                String
   otp_expiry         DateTime
   verification_token String?
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
-  user               User     @relation(fields: [user_id], references: [uuid])
+  user               User     @relation(fields: [userId], references: [uuid])
 }
 
 model UserSession {
-  id            Int       @id @default(autoincrement())
-  user_id       String
-  session_token String    @unique
-  device        String?
-  browser       String?
-  ip_address    String?
-  location      String?
-  is_active     Boolean   @default(true)
-  logged_in_at  DateTime  @default(now())
-  logged_out_at DateTime?
-  expires_at    DateTime
-  user          User      @relation(fields: [user_id], references: [uuid])
+  id           Int       @id @default(autoincrement())
+  userId       String
+  refreshToken String    @unique
+  device       String?
+  browser      String?
+  ipAddress    String?
+  location     String?
+  isActive     Boolean   @default(true)
+  loggedInAt   DateTime  @default(now())
+  loggedOutAt  DateTime?
+  expiresAt    DateTime
+  user         User      @relation(fields: [userId], references: [uuid])
 
-  @@index([user_id])
+  @@index([userId])
 }
+model BlacklistedToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([expiresAt])
+}
+
 
 enum Gender {
   male
