@@ -33,6 +33,7 @@ import { SendVerificationDto } from './dto/send-verification.dto';
 import { SendVerificationResponseDto } from './dto/send-verification-response.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { VerifyEmailResponseDto } from './dto/verify-email-response.dto';
+import { UnverifiedEmailResponseDto } from './dto/unverified-email-response.dto';
 
 @ApiTags('Authentication')
 @Controller('/auth')
@@ -43,6 +44,15 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login user' })
   @ApiResponse({ status: 200, type: AuthResponseDto })
+  @ApiResponse({
+    status: 401,
+    description: 'Email not verified',
+    type: UnverifiedEmailResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid credentials',
+  })
   async signin(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
     return this.authService.signin(loginDto);
   }
@@ -55,10 +65,9 @@ export class AuthController {
   @Post('signup')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Create a new user' })
-  @ApiResponse({ status: 201, type: UserResponseDto })
-  async signup(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
-    const user = await this.authService.signup(createUserDto);
-    return user;
+  @ApiResponse({ status: 201, type: AuthResponseDto })
+  async signup(@Body() createUserDto: CreateUserDto): Promise<AuthResponseDto> {
+    return this.authService.signup(createUserDto);
   }
 
   @Delete('logout')
