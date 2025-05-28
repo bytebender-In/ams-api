@@ -3,20 +3,22 @@ import {
   BadRequestException,
   UnauthorizedException,
   Logger,
-  NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { randomBytes } from 'crypto';
 import { addSeconds } from 'date-fns';
+import { PrismaService } from '@/core/database/prisma.service';
+import { hashPassword, comparePassword } from '@/common/utils/crypto.utils';
 import { LoginDto } from './dto/signin.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
-import { PrismaService } from '@/core/database/prisma.service';
-import { hashPassword, comparePassword } from '@/common/utils/crypto.utils';
 import { LogoutDto } from './dto/logout.dto';
 import { TokenBlacklistService } from './services/token-blacklist.service';
-import * as bcrypt from 'bcrypt';
+import { SendVerificationDto } from './dto/send-verification.dto';
+import { SendVerificationResponseDto } from './dto/send-verification-response.dto';
+import { MailService } from '@/modules/mail/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -27,7 +29,24 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private tokenBlacklistService: TokenBlacklistService,
+    private mailService: MailService,
   ) {}
+
+  private parseExpirationToSeconds(expiration: string): number {
+    const match = expiration.match(/^(\d+)([smhd])$/);
+    if (!match) return 0;
+
+    const [, value, unit] = match;
+    const numValue = parseInt(value, 10);
+
+    switch (unit) {
+      case 's': return numValue;
+      case 'm': return numValue * 60;
+      case 'h': return numValue * 3600;
+      case 'd': return numValue * 86400;
+      default: return 0;
+    }
+  }
 
   async signup(createUserDto: CreateUserDto) {
     const { password, email, username, ...userData } = createUserDto;
@@ -63,6 +82,30 @@ export class AuthService {
         password_hash: hashedPassword,
         ...userData,
       },
+    });
+
+    // Generate OTP for signup verification
+    const otp = this.generateOtp();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Create verification record
+    await this.prisma.userVerification.create({
+      data: {
+        userId: user.uuid,
+        verificationType: 'EMAIL',
+        method: 'OTP',
+        identifier: email,
+        code: otp,
+        expiresAt,
+      },
+    });
+
+    // Send welcome email with OTP
+    await this.mailService.sendVerification({
+      to: email,
+      code: otp,
+      method: 'OTP',
+      isSignup: true,
     });
 
     const responseDto: UserResponseDto = {
@@ -294,19 +337,72 @@ export class AuthService {
     }
   }
 
-  private parseExpirationToSeconds(expiration: string): number {
-    const match = expiration.match(/^(\d+)([smhd])$/);
-    if (!match) return 0;
-
-    const [, value, unit] = match;
-    const numValue = parseInt(value, 10);
-
-    switch (unit) {
-      case 's': return numValue;
-      case 'm': return numValue * 60;
-      case 'h': return numValue * 3600;
-      case 'd': return numValue * 86400;
-      default: return 0;
-    }
+  generateOtp(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
   }
+  
+  generateToken(): string {
+    return randomBytes(32).toString('hex');
+  }
+  
+
+  async sendVerification(dto: SendVerificationDto): Promise<SendVerificationResponseDto> {
+    const { identifier, verificationType, method } = dto;
+  
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: verificationType === 'EMAIL' ? identifier : undefined },
+          { phone_number: verificationType === 'PHONE' ? identifier : undefined },
+        ],
+      },
+    });
+  
+    if (!user) {
+      throw new BadRequestException('User not found with this identifier');
+    }
+  
+    // generate code/token
+    const code = method === 'OTP'
+      ? this.generateOtp()
+      : this.generateToken();
+  
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  
+    await this.prisma.userVerification.create({
+      data: {
+        userId: user.uuid,
+        verificationType,
+        method,
+        identifier,
+        code,
+        expiresAt,
+      },
+    });
+  
+    // send via appropriate channel
+    if (verificationType === 'EMAIL') {
+      await this.mailService.sendVerification({
+        to: identifier,
+        code,
+        method,
+      });
+    } 
+    // if (verificationType === 'PHONE') {
+    //   await this.smsService.sendOtp({
+    //     to: identifier,
+    //     code,
+    //   });
+    // }
+  
+    return {
+      message: 'Verification sent successfully',
+      verificationType,
+      method,
+      identifier,
+      expiresAt: expiresAt.toISOString()
+    };
+  }
+  
+
 }
