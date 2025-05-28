@@ -19,6 +19,8 @@ import { TokenBlacklistService } from './services/token-blacklist.service';
 import { SendVerificationDto } from './dto/send-verification.dto';
 import { SendVerificationResponseDto } from './dto/send-verification-response.dto';
 import { MailService } from '@/modules/mail/mail.service';
+import { VerifyEmailDto } from './dto/verify-email.dto';
+import { VerifyEmailResponseDto } from './dto/verify-email-response.dto';
 
 @Injectable()
 export class AuthService {
@@ -404,5 +406,61 @@ export class AuthService {
     };
   }
   
+  async verifyEmail(verifyEmailDto: VerifyEmailDto): Promise<VerifyEmailResponseDto> {
+    const { email, code } = verifyEmailDto;
 
+    // Find the user
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    // Find the verification record
+    const verification = await this.prisma.userVerification.findFirst({
+      where: {
+        userId: user.uuid,
+        identifier: email,
+        code,
+        expiresAt: {
+          gt: new Date(),
+        },
+        isVerified: false,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    if (!verification) {
+      throw new BadRequestException('Invalid or expired verification code');
+    }
+
+    // Mark verification as verified
+    await this.prisma.userVerification.update({
+      where: { 
+        uvid: verification.uvid 
+      },
+      data: { 
+        isVerified: true,
+        attempts: {
+          increment: 1
+        }
+      },
+    });
+
+    // Update user's email verification status
+    await this.prisma.user.update({
+      where: { uuid: user.uuid },
+      data: { email_verified: true },
+    });
+
+    return {
+      message: 'Email verified successfully',
+      verified: true,
+      userId: user.uuid,
+    };
+  }
 }

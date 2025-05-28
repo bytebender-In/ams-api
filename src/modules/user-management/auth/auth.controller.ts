@@ -1,5 +1,23 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Get, Request, Headers, UnauthorizedException, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Get,
+  Request,
+  Headers,
+  UnauthorizedException,
+  BadRequestException,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
@@ -7,7 +25,14 @@ import { LoginDto } from './dto/signin.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { Auth } from './decorators/auth.decorator';
 import { LogoutDto } from './dto/logout.dto';
-import { CurrentUser, AuthUserPayload } from './decorators/current-user.decorator';
+import {
+  CurrentUser,
+  AuthUserPayload,
+} from './decorators/current-user.decorator';
+import { SendVerificationDto } from './dto/send-verification.dto';
+import { SendVerificationResponseDto } from './dto/send-verification-response.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
+import { VerifyEmailResponseDto } from './dto/verify-email-response.dto';
 
 @ApiTags('Authentication')
 @Controller('/auth')
@@ -36,7 +61,7 @@ export class AuthController {
     return user;
   }
 
-  @Post('logout')
+  @Delete('logout')
   @Auth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Logout current session' })
@@ -65,7 +90,7 @@ export class AuthController {
   @ApiBearerAuth()
   async checkTokenStatus(
     @Headers('authorization') authHeader: string,
-  ): Promise<{ 
+  ): Promise<{
     isValid: boolean;
     isBlacklisted: boolean;
     expiresAt?: Date;
@@ -77,5 +102,34 @@ export class AuthController {
     }
 
     return this.authService.checkTokenStatus(token);
+  }
+
+  @Post('send-verification')
+  @ApiOperation({ summary: 'Send OTP or verification token to email or phone' })
+  @ApiResponse({ status: 201, description: 'Verification sent successfully' , type: SendVerificationResponseDto  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid input or already verified',
+  })
+  sendVerification(@Body() dto: SendVerificationDto): Promise<SendVerificationResponseDto> {
+    return this.authService.sendVerification(dto);
+  }
+
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify email using OTP or token' })
+  @ApiResponse({
+    status: 200,
+    description: 'Email verified successfully',
+    type: VerifyEmailResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid or expired verification code',
+  })
+  async verifyEmail(
+    @Body() verifyEmailDto: VerifyEmailDto,
+  ): Promise<VerifyEmailResponseDto> {
+    return this.authService.verifyEmail(verifyEmailDto);
   }
 }
