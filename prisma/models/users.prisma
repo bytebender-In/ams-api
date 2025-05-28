@@ -33,7 +33,7 @@ model User {
 
 model UserPermission {
   id            Int        @id @default(autoincrement())
-  userId       String
+  userId        String
   permission_id Int
   granted_at    DateTime   @default(now())
   permission    Permission @relation(fields: [permission_id], references: [id])
@@ -44,7 +44,7 @@ model UserRole {
   id          Int      @id @default(autoincrement())
   assigned_at DateTime @default(now())
   role_id     Int
-  userId     String
+  userId      String
   role        Role     @relation(fields: [role_id], references: [id])
   user        User     @relation(fields: [userId], references: [uuid])
 }
@@ -84,14 +84,25 @@ model RolePermission {
 }
 
 model UserVerification {
-  id                 Int      @id @default(autoincrement())
-  userId            String
-  otp                String
-  otp_expiry         DateTime
-  verification_token String?
-  created_at         DateTime @default(now())
-  updated_at         DateTime @updatedAt
-  user               User     @relation(fields: [userId], references: [uuid])
+  uvid             String           @id @default(uuid())
+  userId           String
+  verificationType VerificationType // EMAIL or PHONE
+  method           DeliveryMethod // OTP or TOKEN
+  identifier       String // Email or phone number
+
+  code      String // Can be OTP or token
+  expiresAt DateTime // Expiry for OTP or token
+
+  isVerified Boolean @default(false)
+  attempts   Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [uuid])
+
+  @@index([userId, verificationType, identifier])
+  @@index([code])
 }
 
 model UserSession {
@@ -110,6 +121,7 @@ model UserSession {
 
   @@index([userId])
 }
+
 model BlacklistedToken {
   id        String   @id @default(uuid())
   token     String   @unique
@@ -119,7 +131,6 @@ model BlacklistedToken {
   @@index([token])
   @@index([expiresAt])
 }
-
 
 enum Gender {
   male
@@ -132,4 +143,14 @@ enum UserStatus {
   inactive
   suspended
   deleted
+}
+
+enum VerificationType {
+  EMAIL
+  PHONE
+}
+
+enum DeliveryMethod {
+  OTP
+  TOKEN
 }
