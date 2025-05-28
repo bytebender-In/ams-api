@@ -34,6 +34,9 @@ import { SendVerificationResponseDto } from './dto/send-verification-response.dt
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { VerifyEmailResponseDto } from './dto/verify-email-response.dto';
 import { UnverifiedEmailResponseDto } from './dto/unverified-email-response.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ChangePasswordResponseDto } from './dto/change-password-response.dto';
+import { ErrorResponseDto } from '@/common/dto/error-response.dto';
 
 @ApiTags('Authentication')
 @Controller('/auth')
@@ -140,5 +143,32 @@ export class AuthController {
     @Body() verifyEmailDto: VerifyEmailDto,
   ): Promise<VerifyEmailResponseDto> {
     return this.authService.verifyEmail(verifyEmailDto);
+  }
+
+  @Auth()
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change user password' })
+  @ApiResponse({
+    status: 200,
+    description: 'Password changed successfully',
+    type: ChangePasswordResponseDto
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Current password is incorrect',
+    type: ErrorResponseDto
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid password format',
+    type: ErrorResponseDto
+  })
+  @ApiBearerAuth()
+  async changePassword(
+    @CurrentUser() user: AuthUserPayload,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ): Promise<ChangePasswordResponseDto> {
+    return this.authService.changePassword(user.uuid, changePasswordDto);
   }
 }

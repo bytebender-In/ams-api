@@ -21,6 +21,8 @@ import { SendVerificationResponseDto } from './dto/send-verification-response.dt
 import { MailService } from '@/modules/mail/mail.service';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { VerifyEmailResponseDto } from './dto/verify-email-response.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ChangePasswordResponseDto } from './dto/change-password-response.dto';
 
 @Injectable()
 export class AuthService {
@@ -537,6 +539,52 @@ export class AuthService {
       message: 'Email verified successfully',
       verified: true,
       userId: user.uuid,
+    };
+  }
+
+  async changePassword(userId: string, changePasswordDto: ChangePasswordDto): Promise<ChangePasswordResponseDto> {
+    const { currentPassword, newPassword } = changePasswordDto;
+
+    // Get user from database
+    const user = await this.prisma.user.findUnique({
+      where: { uuid: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Verify current password
+    const isPasswordValid = await comparePassword(currentPassword, user.password_hash);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    // Hash new password
+    const hashedPassword = await hashPassword(newPassword);
+
+    // Update password in database
+    await this.prisma.user.update({
+      where: { uuid: userId },
+      data: { password_hash: hashedPassword },
+    });
+
+    // Invalidate all active sessions
+    await this.prisma.userSession.updateMany({
+      where: {
+        userId,
+        isActive: true,
+      },
+      data: {
+        isActive: false,
+        loggedOutAt: new Date(),
+      },
+    });
+
+    return {
+      code: 200,
+      type: 'success',
+      message: 'Password changed successfully. Please login again with your new password.',
     };
   }
 }

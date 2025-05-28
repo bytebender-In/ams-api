@@ -10,7 +10,7 @@ export class VerificationInfoDto {
 
   @ApiProperty({
     description: 'Identifier used for login (email/username/phone)',
-    example: 'john.doe@example.com',
+    example: 'string',
   })
   identifier: string;
 
@@ -24,20 +24,20 @@ export class VerificationInfoDto {
 export class AuthResponseDto {
   @ApiProperty({
     description: 'Response message',
-    example: 'Login successful',
+    example: 'string',
   })
   message: string;
 
   @ApiProperty({
     description: 'JWT access token',
-    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    example: 'string.',
     nullable: true,
   })
   access_token: string | null;
 
   @ApiProperty({
     description: 'JWT refresh token',
-    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    example: 'string',
     nullable: true,
   })
   refresh_token: string | null;

@@ -6,6 +6,8 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { CustomValidationPipe } from './common/pipe/custom-validation.pipe';
 import { ResponseInterceptor } from './common/interceptor/response.interceptor';
 import { PrismaService } from './core/database/prisma.service';
+import { ValidationPipe } from '@nestjs/common';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -26,6 +28,7 @@ async function bootstrap() {
   app.useGlobalPipes(new CustomValidationPipe());
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalInterceptors(new ResponseInterceptor());
+  app.useGlobalFilters(new HttpExceptionFilter());
   app.useLogger(['debug', 'error', 'fatal', 'log', 'verbose', 'warn']);
 
   // Get PrismaService instance
