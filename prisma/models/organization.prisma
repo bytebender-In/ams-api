@@ -5,6 +5,7 @@ model Organization {
   created_at DateTime           @default(now())
   updated_at DateTime           @updatedAt
   members    OrganizationUser[]
+  subscriptions Subscription[]
 }
 
 model OrganizationUser {

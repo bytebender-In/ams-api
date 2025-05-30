@@ -3,24 +3,72 @@ model Subscription {
   suid       String             @unique @default(uuid())
   user_id    Int
   plan_id    Int
+  organization_id Int
   start_date DateTime
   end_date   DateTime
   status     SubscriptionStatus @default(active)
   created_at DateTime           @default(now())
   updated_at DateTime           @updatedAt
   plan       Plan               @relation(fields: [plan_id], references: [id])
+  organization Organization     @relation(fields: [organization_id], references: [id])
+  module_access ModuleAccess[]
 }
 
 model Plan {
   id            Int            @id @default(autoincrement())
   name          String         @unique
   description   String?
-  content       String?
   price         Float
+  currency      String         @default("USD")
   duration      Int
+  interval      String         // monthly, yearly, etc.
+  is_active     Boolean        @default(true)
   created_at    DateTime       @default(now())
   updated_at    DateTime       @updatedAt
   subscriptions Subscription[]
+  module_access ModuleAccess[]
+}
+
+model ModuleAccess {
+  id          Int          @id @default(autoincrement())
+  plan_id     Int?
+  subscription_id Int?
+  module_id   String
+  is_active   Boolean      @default(true)
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+  plan        Plan?        @relation(fields: [plan_id], references: [id])
+  subscription Subscription? @relation(fields: [subscription_id], references: [id])
+  module      Module       @relation(fields: [module_id], references: [muid])
+  limits      SubscriptionModuleLimit[]
+  features    SubscriptionModuleFeature[]
+
+  @@unique([subscription_id, module_id])
+  @@unique([plan_id, module_id])
+}
+
+model SubscriptionModuleLimit {
+  id          Int          @id @default(autoincrement())
+  access_id   Int
+  limit_key   String       // e.g., "max_users", "max_roles", "max_storage"
+  limit_value Int
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+  access      ModuleAccess @relation(fields: [access_id], references: [id])
+
+  @@unique([access_id, limit_key])
+}
+
+model SubscriptionModuleFeature {
+  id          Int          @id @default(autoincrement())
+  access_id   Int
+  feature_key String       // e.g., "custom_domain", "api_access", "priority_support"
+  feature_value String     // "true", "false", or any other value
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+  access      ModuleAccess @relation(fields: [access_id], references: [id])
+
+  @@unique([access_id, feature_key])
 }
 
 enum SubscriptionStatus {
