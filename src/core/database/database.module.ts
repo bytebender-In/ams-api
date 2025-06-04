@@ -5,6 +5,6 @@ import { DatabaseService } from './database.service';
 @Global()
 @Module({
   providers: [PrismaService, DatabaseService],
-  exports: [DatabaseService],
+  exports: [DatabaseService, PrismaService],
 })
 export class DatabaseModule {}

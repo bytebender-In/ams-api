@@ -8,6 +8,8 @@ import { UserManagementModule } from './modules/user-management/user-management.
 import { PrismaService } from './core/database/prisma.service';
 import authConfig from './common/config/auth.config';
 import { ModuleModule } from './modules/module/module.module';
+import { SubscriptionModule } from './modules/subscription/subscription.module';
+import { OrganizationModule } from './modules/organization/organization.module';
 
 @Module({
   imports: [
@@ -20,7 +22,9 @@ import { ModuleModule } from './modules/module/module.module';
     CommonModule,
     UserModule,
     UserManagementModule,
-    ModuleModule
+    ModuleModule,
+    SubscriptionModule,
+    OrganizationModule,
   ],
   controllers: [],
   providers: [PrismaService],

@@ -5,7 +5,7 @@ import { ApiTags, ApiOperation, ApiResponse as SwaggerResponse } from '@nestjs/s
 import { ModuleFeatureResponseDto } from './dto/module-response.dto';
 import { ApiResponse } from '../../common/interfaces/api-response.interface';
 
-@ApiTags('module-features')
+@ApiTags('modules')
 @Controller('module-features')
 export class ModuleFeatureController {
   constructor(private readonly moduleFeatureService: ModuleFeatureService) {}
