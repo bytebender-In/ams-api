@@ -20,6 +20,7 @@
     "paths": {
       "@/*":["src/*"],
       "@common/*": ["src/common/*"]
-    }
+    },
+    "types": ["node", "jest"]
   }
 }
