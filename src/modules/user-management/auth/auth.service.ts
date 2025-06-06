@@ -6,12 +6,21 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { randomBytes } from 'crypto';
+import { addSeconds } from 'date-fns';
+import { PrismaService } from '@/core/database/prisma.service';
+import { hashPassword, comparePassword } from '@/common/utils/crypto.utils';
 import { LoginDto } from './dto/signin.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
-import { PrismaService } from '@/core/database/prisma.service';
-import { hashPassword, comparePassword } from '@/common/utils/crypto.utils';
+import { LogoutDto } from './dto/logout.dto';
+import { TokenBlacklistService } from './services/token-blacklist.service';
+import { SendVerificationDto } from './dto/send-verification.dto';
+import { SendVerificationResponseDto } from './dto/send-verification-response.dto';
+import { MailService } from '@/modules/mail/mail.service';
+import { VerifyEmailDto } from './dto/verify-email.dto';
+import { VerifyEmailResponseDto } from './dto/verify-email-response.dto';
 
 @Injectable()
 export class AuthService {
@@ -21,7 +30,30 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private tokenBlacklistService: TokenBlacklistService,
+    private mailService: MailService,
   ) {}
+
+  private parseExpirationToSeconds(expiration: string): number {
+    const match = expiration.match(/^(\d+)([smhd])$/);
+    if (!match) return 0;
+
+    const [, value, unit] = match;
+    const numValue = parseInt(value, 10);
+
+    switch (unit) {
+      case 's':
+        return numValue;
+      case 'm':
+        return numValue * 60;
+      case 'h':
+        return numValue * 3600;
+      case 'd':
+        return numValue * 86400;
+      default:
+        return 0;
+    }
+  }
 
   async signup(createUserDto: CreateUserDto) {
     const { password, email, username, ...userData } = createUserDto;
@@ -59,26 +91,60 @@ export class AuthService {
       },
     });
 
-    const responseDto: UserResponseDto = {
-      uuid: user.uuid,
-      email: user.email,
-      phone_number: user.phone_number ?? null,
-      username: user.username ?? null,
-      first_name: user.first_name,
-      last_name: user.last_name,
-      language: user.language,
-      timezone: user.timezone,
-      status: user.status,
-      email_verified: user.email_verified,
-      phone_verified: user.phone_verified,
-    };
+    // Generate OTP for signup verification
+    const otp = this.generateOtp();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    return responseDto;
+    // Create verification record
+    await this.prisma.userVerification.create({
+      data: {
+        userId: user.uuid,
+        verificationType: 'EMAIL',
+        method: 'OTP',
+        identifier: email,
+        code: otp,
+        expiresAt,
+      },
+    });
+
+    // Send welcome email with OTP
+    await this.mailService.sendVerification({
+      to: email,
+      code: otp,
+      method: 'OTP',
+      isSignup: true,
+    });
+
+    return {
+      message: 'Please verify your email. A verification email has been sent to your email address.',
+      access_token: null,
+      refresh_token: null,
+      access_token_expires_in: 0,
+      refresh_token_expires_in: 0,
+      user: {
+        uuid: user.uuid,
+        email: user.email,
+        phone_number: user.phone_number ?? null,
+        username: user.username ?? null,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        language: user.language,
+        timezone: user.timezone,
+        status: user.status,
+        email_verified: false,
+        phone_verified: user.phone_verified,
+      },
+      verification: {
+        type: 'unverified_email',
+        identifier: email,
+        verified: false
+      }
+    };
   }
 
   async signin(loginDto: LoginDto): Promise<AuthResponseDto> {
-    const { identifier, password } = loginDto;
-
+    const { identifier, password, device, browser, ipAddress, location } = loginDto;
+  
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [
@@ -88,41 +154,143 @@ export class AuthService {
         ],
       },
     });
-
+  
     if (!user) {
       throw new UnauthorizedException('User does not exist');
     }
-
+  
     const isPasswordValid = await comparePassword(password, user.password_hash);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Incorrect password. Please try again');
     }
 
+    // Check if email is verified
+    if (!user.email_verified) {
+      // Generate new verification token
+      const verificationToken = this.generateToken();
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+      // Create verification record
+      await this.prisma.userVerification.create({
+        data: {
+          userId: user.uuid,
+          verificationType: 'EMAIL',
+          method: 'TOKEN',
+          identifier: user.email,
+          code: verificationToken,
+          expiresAt,
+        },
+      });
+
+      // Send verification email
+      await this.mailService.sendVerification({
+        to: user.email,
+        code: verificationToken,
+        method: 'TOKEN',
+      });
+
+      // Return response with unverified status
+      return {
+        message: 'Please verify your email first',
+        access_token: null,
+        refresh_token: null,
+        access_token_expires_in: 0,
+        refresh_token_expires_in: 0,
+        user: {
+          uuid: user.uuid,
+          email: user.email,
+          phone_number: user.phone_number ?? null,
+          username: user.username ?? null,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          language: user.language,
+          timezone: user.timezone,
+          status: user.status,
+          email_verified: false,
+          phone_verified: user.phone_verified,
+        },
+        verification: {
+          type: 'unverified_email',
+          identifier: identifier,
+          verified: false
+        }
+      };
+    }
+  
     const accessTokenExpiration = this.configService.get('auth.jwtExpiration');
     const refreshTokenExpiration = this.configService.get('auth.refreshTokenExpiration');
-    const jwtSecret = this.configService.get('auth.jwtSecret');
-
-    this.logger.debug(`JWT Configuration:`);
-    this.logger.debug(`- JWT Secret: ${jwtSecret}`);
-    this.logger.debug(`- Access Token Expiration: ${accessTokenExpiration}`);
-    this.logger.debug(`- User UUID: ${user.uuid}`);
-
+  
     const [access_token, refresh_token] = await Promise.all([
+      this.jwtService.signAsync({ sub: user.uuid }, { expiresIn: accessTokenExpiration }),
       this.jwtService.signAsync(
         { sub: user.uuid },
-        { expiresIn: accessTokenExpiration }
-      ),
-      this.jwtService.signAsync(
-        { sub: user.uuid },
-        { 
+        {
           secret: this.configService.get('auth.refreshTokenSecret'),
-          expiresIn: refreshTokenExpiration
+          expiresIn: refreshTokenExpiration,
         }
       ),
     ]);
-
-    this.logger.debug(`Generated Access Token: ${access_token}`);
-
+  
+    const expiresAt = addSeconds(new Date(), this.parseExpirationToSeconds(refreshTokenExpiration));
+  
+    // Check if a session exists for same device + browser + IP
+    const existingSession = await this.prisma.userSession.findFirst({
+      where: {
+        userId: user.uuid,
+        device,
+        browser,
+        ipAddress,
+        isActive: true,
+      },
+    });
+  
+    if (existingSession) {
+      // Reuse session: update refresh token & timestamps
+      await this.prisma.userSession.update({
+        where: { id: existingSession.id },
+        data: {
+          refreshToken: refresh_token,
+          loggedInAt: new Date(),
+          expiresAt,
+        },
+      });
+    } else {
+      // Check active session count
+      const activeSessions = await this.prisma.userSession.findMany({
+        where: {
+          userId: user.uuid,
+          isActive: true,
+        },
+        orderBy: {
+          loggedInAt: 'asc',
+        },
+      });
+  
+      // If already 5, remove oldest
+      if (activeSessions.length >= 5) {
+        await this.prisma.userSession.update({
+          where: { id: activeSessions[0].id },
+          data: {
+            isActive: false,
+            loggedOutAt: new Date(),
+          },
+        });
+      }
+  
+      // Create new session
+      await this.prisma.userSession.create({
+        data: {
+          userId: user.uuid,
+          refreshToken: refresh_token,
+          device,
+          browser,
+          ipAddress,
+          location,
+          expiresAt,
+        },
+      });
+    }
+  
     const response: UserResponseDto = {
       uuid: user.uuid,
       email: user.email,
@@ -136,34 +304,239 @@ export class AuthService {
       email_verified: user.email_verified,
       phone_verified: user.phone_verified,
     };
-
-    // Convert expiration times to seconds
-    const accessTokenExpiresIn = this.parseExpirationToSeconds(accessTokenExpiration);
-    const refreshTokenExpiresIn = this.parseExpirationToSeconds(refreshTokenExpiration);
-
+  
     return {
-      message:"Login successful",
+      message: 'Login successful',
       access_token,
       refresh_token,
-      access_token_expires_in: accessTokenExpiresIn,
-      refresh_token_expires_in: refreshTokenExpiresIn,
+      access_token_expires_in: this.parseExpirationToSeconds(accessTokenExpiration),
+      refresh_token_expires_in: this.parseExpirationToSeconds(refreshTokenExpiration),
       user: response,
     };
   }
 
-  private parseExpirationToSeconds(expiration: string): number {
-    const match = expiration.match(/^(\d+)([smhd])$/);
-    if (!match) return 0;
+  async logout(
+    userId: string,
+    token: string,
+    logoutDto: LogoutDto,
+  ): Promise<void> {
+    try {
+      // Validate token format
+      if (!token || typeof token !== 'string' || !token.includes('.')) {
+        throw new BadRequestException('Invalid token format');
+      }
 
-    const [, value, unit] = match;
-    const numValue = parseInt(value, 10);
+      // Get token expiration from JWT
+      const decodedToken = this.jwtService.decode(token);
+      if (!decodedToken || typeof decodedToken === 'string') {
+        throw new BadRequestException('Invalid token format');
+      }
 
-    switch (unit) {
-      case 's': return numValue;
-      case 'm': return numValue * 60;
-      case 'h': return numValue * 3600;
-      case 'd': return numValue * 86400;
-      default: return 0;
+      const expiresIn = decodedToken.exp - Math.floor(Date.now() / 1000);
+      if (expiresIn <= 0) {
+        throw new BadRequestException('Token has already expired');
+      }
+
+      // Blacklist the token
+      await this.tokenBlacklistService.blacklistToken(token, expiresIn);
+
+      // Update session status
+      await this.prisma.userSession.updateMany({
+        where: {
+          userId,
+          isActive: true,
+          device: logoutDto.device,
+          browser: logoutDto.browser,
+          ipAddress: logoutDto.ipAddress,
+        },
+        data: {
+          isActive: false,
+          loggedOutAt: new Date(),
+        },
+      });
+
+      this.logger.log(`User ${userId} logged out successfully`);
+    } catch (error) {
+      this.logger.error(`Logout failed for user ${userId}:`, error);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new UnauthorizedException('Logout failed');
     }
+  }
+
+  async checkTokenStatus(token: string): Promise<{
+    isValid: boolean;
+    isBlacklisted: boolean;
+    expiresAt?: Date;
+    message: string;
+  }> {
+    try {
+      // Validate token format
+      if (!token || typeof token !== 'string' || !token.includes('.')) {
+        throw new BadRequestException('Invalid token format');
+      }
+
+      // Check if token is blacklisted
+      const isBlacklisted =
+        await this.tokenBlacklistService.isTokenBlacklisted(token);
+      if (isBlacklisted) {
+        return {
+          isValid: false,
+          isBlacklisted: true,
+          message: 'Token has been invalidated',
+        };
+      }
+
+      // Verify token and get expiration
+      try {
+        const decoded = this.jwtService.verify(token);
+        const expiresAt = new Date(decoded.exp * 1000);
+
+        return {
+          isValid: true,
+          isBlacklisted: false,
+          expiresAt,
+          message: 'Token is valid',
+        };
+      } catch (error) {
+        return {
+          isValid: false,
+          isBlacklisted: false,
+          message: 'Token is invalid or expired',
+        };
+      }
+    } catch (error) {
+      this.logger.error('Error checking token status:', error);
+      throw new BadRequestException('Failed to check token status');
+    }
+  }
+
+  generateOtp(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  generateToken(): string {
+    return randomBytes(32).toString('hex');
+  }
+
+  async sendVerification(
+    dto: SendVerificationDto,
+  ): Promise<SendVerificationResponseDto> {
+    const { identifier, verificationType, method } = dto;
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: verificationType === 'EMAIL' ? identifier : undefined },
+          {
+            phone_number: verificationType === 'PHONE' ? identifier : undefined,
+          },
+        ],
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found with this identifier');
+    }
+
+    // generate code/token
+    const code = method === 'OTP' ? this.generateOtp() : this.generateToken();
+
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await this.prisma.userVerification.create({
+      data: {
+        userId: user.uuid,
+        verificationType,
+        method,
+        identifier,
+        code,
+        expiresAt,
+      },
+    });
+
+    // send via appropriate channel
+    if (verificationType === 'EMAIL') {
+      await this.mailService.sendVerification({
+        to: identifier,
+        code,
+        method,
+      });
+    }
+    // if (verificationType === 'PHONE') {
+    //   await this.smsService.sendOtp({
+    //     to: identifier,
+    //     code,
+    //   });
+    // }
+
+    return {
+      message: 'Verification sent successfully',
+      verificationType,
+      method,
+      identifier,
+      expiresAt: expiresAt.toISOString(),
+    };
+  }
+
+  async verifyEmail(
+    verifyEmailDto: VerifyEmailDto,
+  ): Promise<VerifyEmailResponseDto> {
+    const { email, code } = verifyEmailDto;
+
+    // Find the user
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    // Find the verification record
+    const verification = await this.prisma.userVerification.findFirst({
+      where: {
+        userId: user.uuid,
+        identifier: email,
+        code,
+        expiresAt: {
+          gt: new Date(),
+        },
+        isVerified: false,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    if (!verification) {
+      throw new BadRequestException('Invalid or expired verification code');
+    }
+
+    // Mark verification as verified
+    await this.prisma.userVerification.update({
+      where: {
+        uvid: verification.uvid,
+      },
+      data: {
+        isVerified: true,
+        attempts: {
+          increment: 1,
+        },
+      },
+    });
+
+    // Update user's email verification status
+    await this.prisma.user.update({
+      where: { uuid: user.uuid },
+      data: { email_verified: true },
+    });
+
+    return {
+      message: 'Email verified successfully',
+      verified: true,
+      userId: user.uuid,
+    };
   }
 }
