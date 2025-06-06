@@ -40,6 +40,27 @@ npx prisma db pull
 npx prisma validate
 ```
 
+### ERD Generation
+
+To generate an Entity Relationship Diagram (ERD) from your Prisma schema:
+
+```bash
+# Run the ERD generation script
+./generate-erd.sh
+
+# Or manually:
+# 1. Combine all Prisma models
+cat prisma/models/*.prisma > prisma/combined_schema.prisma
+
+# 2. Generate ERD
+npx @liam-hq/cli erd build --format prisma --input "prisma/combined_schema.prisma"
+
+# 3. View the ERD
+npx http-server dist/
+```
+
+The ERD will be available at `http://localhost:8080` in your browser.
+
 <details>
 <summary>📚 Additional Prisma Commands</summary>
 

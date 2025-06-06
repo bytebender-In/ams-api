@@ -7,6 +7,9 @@ import { ConfigModule } from '@nestjs/config';
 import { UserManagementModule } from './modules/user-management/user-management.module';
 import { PrismaService } from './core/database/prisma.service';
 import authConfig from './common/config/auth.config';
+import { ModuleModule } from './modules/module/module.module';
+import { SubscriptionModule } from './modules/subscription/subscription.module';
+import { OrganizationModule } from './modules/organization/organization.module';
 
 @Module({
   imports: [
@@ -19,6 +22,9 @@ import authConfig from './common/config/auth.config';
     CommonModule,
     UserModule,
     UserManagementModule,
+    ModuleModule,
+    SubscriptionModule,
+    OrganizationModule,
   ],
   controllers: [],
   providers: [PrismaService],

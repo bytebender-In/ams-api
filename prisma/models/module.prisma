@@ -1,1 +1,97 @@
+model Module {
+  muid          String       @id @default(uuid())
+  module_key    String       @unique            // e.g., "school-management", "hospital-management"
+  name          String                           // e.g., "School Management", "Hospital Management"
+  description   String?
+  icon          String?                          // optional icon class or URL
+  type          ModuleType   @default(CUSTOM)    // Type of management system
+  is_active     Boolean      @default(true)
+  parent_id     String?                          // For hierarchical structure
+  parent        Module?      @relation("ModuleHierarchy", fields: [parent_id], references: [muid])
+  children      Module[]     @relation("ModuleHierarchy")
+  features      ModuleFeature[]
+  access        ModuleAccess[]
+  created_at    DateTime     @default(now())
+  updated_at    DateTime     @updatedAt
+}
 
+model ModuleFeature {
+  mfuid         String     @id @default(uuid())
+  module_id     String
+  feature_key   String     // e.g., "attendance", "billing", "inventory"
+  feature_value String     // "true", "false", or any other value
+  metadata      String?    // Additional JSON metadata
+  is_enabled    Boolean    @default(true)
+  priority      Int?       @default(1)
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
+  module        Module     @relation(fields: [module_id], references: [muid])
+
+  @@unique([module_id, feature_key])
+}
+
+enum ModuleType {
+  // Main Modules
+  SCHOOL
+  HOSPITAL
+  BUSINESS
+  HOTEL
+  RESTAURANT
+
+  // School Submodules
+  STUDENT
+  TEACHER
+  CLASS
+  EXAM
+  ATTENDANCE
+  FEE
+  RESULT
+  TIMETABLE
+  
+  // Hospital Submodules
+  PATIENT
+  DOCTOR
+  NURSE
+  APPOINTMENT
+  WARD
+  PHARMACY
+  LABORATORY
+  HOSPITAL_BILLING
+  
+  // Business Submodules
+  EMPLOYEE
+  DEPARTMENT
+  PROJECT
+  BUSINESS_INVENTORY
+  SALES
+  CUSTOMER
+  ACCOUNTING
+  HR
+  
+  // Hotel Submodules
+  ROOM
+  BOOKING
+  HOTEL_STAFF
+  SERVICE
+  HOUSEKEEPING
+  HOTEL_RESTAURANT
+  SPA
+  
+  // Restaurant Submodules
+  MENU
+  ORDER
+  TABLE
+  KITCHEN
+  RESTAURANT_INVENTORY
+  RESTAURANT_STAFF
+  RESTAURANT_BILLING
+  
+  // Common Submodules
+  USER
+  ROLE
+  SETTING
+  REPORT
+  DASHBOARD
+  NOTIFICATION
+  CUSTOM
+}

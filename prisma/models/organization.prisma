@@ -1,19 +1,20 @@
 model Organization {
-  id         Int                @id @default(autoincrement())
+  orguid         String                @id @default(uuid())
   slug       String             @unique
   name       String
   created_at DateTime           @default(now())
   updated_at DateTime           @updatedAt
   members    OrganizationUser[]
+  subscriptions Subscription[]
 }
 
 model OrganizationUser {
   id              Int          @id @default(autoincrement())
-  organization_id Int
+  organization_id String
   user_id         String
   created_at      DateTime     @default(now())
   updated_at      DateTime     @updatedAt
-  organization    Organization @relation(fields: [organization_id], references: [id])
+  organization    Organization @relation(fields: [organization_id], references: [orguid])
 
   @@unique([organization_id, user_id])
 }

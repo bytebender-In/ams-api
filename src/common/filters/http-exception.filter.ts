@@ -1,9 +1,4 @@
 import {
-  ExceptionFilter,
-  Catch,
-  ArgumentsHost,
-  HttpException,
-  HttpStatus,
   UnauthorizedException,
   ForbiddenException,
   BadRequestException,
@@ -13,6 +8,10 @@ import {
   RequestTimeoutException,
   ServiceUnavailableException,
   InternalServerErrorException,
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { ErrorResponseDto, ErrorType } from '../dto/error-response.dto';
