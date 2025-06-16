@@ -1,60 +1,149 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { ModuleType } from '@prisma/client';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export class ModuleFeatureResponseDto {
-  @ApiProperty()
-  mfuid: string;
-
-  @ApiProperty()
-  module_id: string;
-
-  @ApiProperty()
-  feature_key: string;
-
-  @ApiProperty()
-  feature_value: string;
-
-  @ApiProperty()
-  created_at: Date;
-
-  @ApiProperty()
-  updated_at: Date;
-}
-
+/**
+ * Data Transfer Object for module responses
+ * @description Represents the structure of module data in responses
+ */
 export class ModuleResponseDto {
-  @ApiProperty()
-  muid: string;
+  @ApiProperty({
+    description: 'Unique identifier of the module',
+    example: 'mod_123456789abcdefghijk',
+    required: true
+  })
+  mouid: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Unique key identifier of the module',
+    example: 'SCHOOL_MANAGEMENT',
+    required: true
+  })
   module_key: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Display name of the module',
+    example: 'School Management',
+    required: true
+  })
   name: string;
 
-  @ApiProperty({ required: false, nullable: true })
-  description: string | null;
+  @ApiPropertyOptional({
+    description: 'Detailed description of the module',
+    example: 'Comprehensive school management system for handling students, teachers, and classes',
+    required: false,
+    nullable: true
+  })
+  description?: string;
 
-  @ApiProperty({ required: false, nullable: true })
-  icon: string | null;
+  @ApiPropertyOptional({
+    description: 'Icon identifier for the module',
+    example: 'school',
+    required: false,
+    nullable: true
+  })
+  icon?: string;
 
-  @ApiProperty({ enum: ModuleType })
-  type: ModuleType;
+  @ApiProperty({
+    description: 'ID of the module type this module belongs to',
+    example: 'mot_123456789abcdefghijk',
+    required: true
+  })
+  type_id: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Module type details',
+    type: 'object',
+    properties: {
+      motuid: { 
+        type: 'string', 
+        example: 'mot_123456789abcdefghijk',
+        required: true 
+      },
+      key: { 
+        type: 'string', 
+        example: 'SCHOOL',
+        required: true 
+      },
+      name: { 
+        type: 'string', 
+        example: 'School Management',
+        required: true 
+      },
+      description: { 
+        type: 'string', 
+        example: 'School management system type',
+        required: false,
+        nullable: true 
+      },
+      category: { 
+        type: 'string', 
+        example: 'EDUCATION',
+        required: false,
+        nullable: true 
+      }
+    }
+  })
+  type: {
+    motuid: string;
+    key: string;
+    name: string;
+    description?: string;
+    category?: string;
+  };
+
+  @ApiProperty({
+    description: 'Whether the module is active',
+    example: true,
+    required: true
+  })
   is_active: boolean;
 
-  @ApiProperty({ required: false, nullable: true })
-  parent_id: string | null;
+  @ApiPropertyOptional({
+    description: 'ID of the parent module (if this is a submodule)',
+    example: 'mod_987654321abcdefghijk',
+    required: false,
+    nullable: true
+  })
+  parent_id?: string;
 
-  @ApiProperty({ type: [ModuleFeatureResponseDto], required: false })
-  features?: ModuleFeatureResponseDto[];
+  @ApiPropertyOptional({
+    description: 'Parent module details (if exists)',
+    type: 'object',
+    nullable: true,
+    properties: {
+      mouid: { 
+        type: 'string', 
+        example: 'mod_123456789abcdefghijk',
+        required: true 
+      },
+      module_key: { 
+        type: 'string', 
+        example: 'PARENT_MODULE',
+        required: true 
+      },
+      name: { 
+        type: 'string', 
+        example: 'Parent Module',
+        required: true 
+      }
+    }
+  })
+  parent?: {
+    mouid: string;
+    module_key: string;
+    name: string;
+  };
 
-  @ApiProperty({ type: [ModuleResponseDto], required: false })
-  children?: ModuleResponseDto[];
-
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Creation timestamp',
+    example: '2024-03-20T10:00:00Z',
+    required: true
+  })
   created_at: Date;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Last update timestamp',
+    example: '2024-03-20T10:00:00Z',
+    required: true
+  })
   updated_at: Date;
 } 

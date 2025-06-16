@@ -1,72 +1,67 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsUUID, IsOptional, Matches, MaxLength, MinLength, IsJSON, IsBoolean, IsInt, Min, Max } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsOptional, IsBoolean, IsInt, Min, Max, Matches, MaxLength } from 'class-validator';
 
+/**
+ * Data Transfer Object for creating a module feature
+ * @description Represents the structure and validation rules for creating a module feature
+ */
 export class CreateModuleFeatureDto {
   @ApiProperty({
-    description: 'ID of the module this feature belongs to',
-    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'Unique key identifier for the feature',
+    example: 'ENABLE_STUDENT_REGISTRATION',
+    minLength: 2,
+    maxLength: 50,
     required: true
   })
-  @IsUUID()
-  module_id: string;
-
-  @ApiProperty({
-    description: 'Key of the feature (e.g., "attendance", "billing", "reports")',
-    example: 'attendance',
-    required: true,
-    minLength: 3,
-    maxLength: 50
-  })
   @IsString()
-  @MinLength(3)
-  @MaxLength(50)
-  @Matches(/^[a-z0-9-]+$/, {
-    message: 'feature_key must contain only lowercase letters, numbers, and hyphens'
+  @Matches(/^[A-Z_]+$/, {
+    message: 'Feature key must contain only uppercase letters and underscores'
   })
   feature_key: string;
 
   @ApiProperty({
-    description: 'Value of the feature (e.g., "true", "false", or any other value)',
+    description: 'Value of the feature',
     example: 'true',
-    required: true,
     minLength: 1,
-    maxLength: 255
+    maxLength: 255,
+    required: true
   })
   @IsString()
-  @MinLength(1)
-  @MaxLength(255)
   feature_value: string;
 
-  @ApiProperty({
-    description: 'Additional metadata for the feature (optional)',
-    example: '{"max_users": 100, "allowed_roles": ["admin", "teacher"]}',
-    required: false
+  @ApiPropertyOptional({
+    description: 'Additional metadata for the feature',
+    example: '{"max_students": 1000, "allowed_roles": ["ADMIN", "TEACHER"]}',
+    maxLength: 1000,
+    required: false,
+    nullable: true
   })
   @IsString()
   @IsOptional()
-  @IsJSON()
+  @MaxLength(1000)
   metadata?: string;
 
-  @ApiProperty({
-    description: 'Whether this feature is enabled by default',
+  @ApiPropertyOptional({
+    description: 'Whether the feature is enabled',
     example: true,
-    required: false,
-    default: true
+    default: true,
+    required: false
   })
   @IsBoolean()
   @IsOptional()
   is_enabled?: boolean;
 
-  @ApiProperty({
-    description: 'Priority level of the feature (1-5)',
+  @ApiPropertyOptional({
+    description: 'Priority of the feature (1-10)',
     example: 1,
-    required: false,
     minimum: 1,
-    maximum: 5
+    maximum: 10,
+    default: 1,
+    required: false
   })
   @IsInt()
   @Min(1)
-  @Max(5)
+  @Max(10)
   @IsOptional()
   priority?: number;
 } 

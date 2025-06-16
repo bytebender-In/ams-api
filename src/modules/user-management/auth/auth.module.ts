@@ -8,6 +8,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { PrismaService } from '@/core/database/prisma.service';
 import { TokenBlacklistService } from './services/token-blacklist.service';
 import { MailModule } from '@/modules/mail/mail.module';
+import { DatabaseService } from '@/core/database/database.service';
+import { DatabaseModule } from '@/core/database/database.module';
 
 @Module({
   imports: [
@@ -23,9 +25,16 @@ import { MailModule } from '@/modules/mail/mail.module';
       inject: [ConfigService],
     }),
     MailModule,
+    DatabaseModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, PrismaService, TokenBlacklistService],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    PrismaService,
+    TokenBlacklistService,
+    DatabaseService
+  ],
   exports: [AuthService],
 })
 export class AuthModule {}

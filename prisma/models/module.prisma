@@ -1,97 +1,110 @@
-model Module {
-  muid          String       @id @default(uuid())
-  module_key    String       @unique            // e.g., "school-management", "hospital-management"
-  name          String                           // e.g., "School Management", "Hospital Management"
-  description   String?
-  icon          String?                          // optional icon class or URL
-  type          ModuleType   @default(CUSTOM)    // Type of management system
-  is_active     Boolean      @default(true)
-  parent_id     String?                          // For hierarchical structure
-  parent        Module?      @relation("ModuleHierarchy", fields: [parent_id], references: [muid])
-  children      Module[]     @relation("ModuleHierarchy")
-  features      ModuleFeature[]
-  access        ModuleAccess[]
-  created_at    DateTime     @default(now())
-  updated_at    DateTime     @updatedAt
+/// @author Vartik Anand
+/// @description Module management system schema for handling dynamic modules, features, and access control
+/// @version 1.0.0
+
+// Defines different types of modules (e.g., SCHOOL, HOSPITAL, etc.)
+model ModuleType {
+  motuid      String   @id @default(uuid())
+  key         String   @unique
+  name        String
+  description String?
+  category    String?
+  is_active   Boolean  @default(true)
+  modules     Module[]
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([key])
 }
 
+// Main module entity that represents different types of management systems
+// Each module can have features, access controls, and can be hierarchical
+
+model Module {
+  mouid         String          @id @default(uuid())
+  module_key    String          @unique
+  name          String
+  description   String?
+  icon          String?
+  type_id       String
+  type          ModuleType      @relation(fields: [type_id], references: [motuid], onDelete: Restrict)
+  is_active     Boolean         @default(true)
+  parent_id     String?
+  parent        Module?         @relation("ModuleHierarchy", fields: [parent_id], references: [mouid], onDelete: SetNull)
+  children      Module[]        @relation("ModuleHierarchy")
+  features      ModuleFeature[]
+  accesses      ModuleAccess[]
+  created_at    DateTime        @default(now())
+  updated_at    DateTime        @updatedAt
+  plan_features PlanFeature[]
+  plans         Plan[]
+
+  @@index([module_key])
+  @@index([type_id])
+  @@index([parent_id])
+}
+
+// Features associated with each module
 model ModuleFeature {
-  mfuid         String     @id @default(uuid())
+  mofuid        String   @id @default(uuid())
   module_id     String
-  feature_key   String     // e.g., "attendance", "billing", "inventory"
-  feature_value String     // "true", "false", or any other value
-  metadata      String?    // Additional JSON metadata
-  is_enabled    Boolean    @default(true)
-  priority      Int?       @default(1)
-  created_at    DateTime   @default(now())
-  updated_at    DateTime   @updatedAt
-  module        Module     @relation(fields: [module_id], references: [muid])
+  feature_key   String
+  feature_value String
+  metadata      String?
+  is_enabled    Boolean  @default(true)
+  priority      Int?     @default(1)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  module        Module   @relation(fields: [module_id], references: [mouid], onDelete: Cascade)
 
   @@unique([module_id, feature_key])
+  @@index([module_id])
 }
 
-enum ModuleType {
-  // Main Modules
-  SCHOOL
-  HOSPITAL
-  BUSINESS
-  HOTEL
-  RESTAURANT
+model ModuleAccess {
+  id              Int                         @id @default(autoincrement())
+  plan_id         String?
+  subscription_id String?
+  module_id       String
+  is_active       Boolean                     @default(true)
+  region          String?                     @default("global")
+  created_at      DateTime                    @default(now())
+  updated_at      DateTime                    @updatedAt
+  plan            Plan?                       @relation("PlanAccesses", fields: [plan_id], references: [puid])
+  subscription    Subscription?               @relation("SubscriptionAccesses", fields: [subscription_id], references: [suid])
+  module          Module                      @relation(fields: [module_id], references: [mouid], onDelete: Restrict)
+  module_limits   SubscriptionModuleLimit[]
+  module_features SubscriptionModuleFeature[]
 
-  // School Submodules
-  STUDENT
-  TEACHER
-  CLASS
-  EXAM
-  ATTENDANCE
-  FEE
-  RESULT
-  TIMETABLE
-  
-  // Hospital Submodules
-  PATIENT
-  DOCTOR
-  NURSE
-  APPOINTMENT
-  WARD
-  PHARMACY
-  LABORATORY
-  HOSPITAL_BILLING
-  
-  // Business Submodules
-  EMPLOYEE
-  DEPARTMENT
-  PROJECT
-  BUSINESS_INVENTORY
-  SALES
-  CUSTOMER
-  ACCOUNTING
-  HR
-  
-  // Hotel Submodules
-  ROOM
-  BOOKING
-  HOTEL_STAFF
-  SERVICE
-  HOUSEKEEPING
-  HOTEL_RESTAURANT
-  SPA
-  
-  // Restaurant Submodules
-  MENU
-  ORDER
-  TABLE
-  KITCHEN
-  RESTAURANT_INVENTORY
-  RESTAURANT_STAFF
-  RESTAURANT_BILLING
-  
-  // Common Submodules
-  USER
-  ROLE
-  SETTING
-  REPORT
-  DASHBOARD
-  NOTIFICATION
-  CUSTOM
+  @@unique([plan_id, module_id, region])
+  @@unique([subscription_id, module_id, region])
+  @@index([plan_id])
+  @@index([subscription_id])
+  @@index([module_id])
+}
+
+model SubscriptionModuleLimit {
+  id          Int          @id @default(autoincrement())
+  access_id   Int
+  limit_key   String
+  limit_value Int
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+  access      ModuleAccess @relation(fields: [access_id], references: [id], onDelete: Cascade)
+
+  @@unique([access_id, limit_key])
+  @@index([access_id])
+}
+
+model SubscriptionModuleFeature {
+  id            Int          @id @default(autoincrement())
+  access_id     Int
+  feature_key   String
+  feature_value String
+  created_at    DateTime     @default(now())
+  updated_at    DateTime     @updatedAt
+  access        ModuleAccess @relation(fields: [access_id], references: [id], onDelete: Cascade)
+
+  @@unique([access_id, feature_key])
+  @@index([access_id])
 }
