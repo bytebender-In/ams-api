@@ -14,6 +14,27 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
  * 
  * @author Vartik Anand
  */
+
+export class ModuleAccessDto {
+  @ApiProperty({ description: 'Module key' })
+  module_key: string;
+
+  @ApiProperty({ description: 'Module name' })
+  name: string;
+
+  @ApiProperty({ description: 'Module limits' })
+  limits: {
+    limit_key: string;
+    limit_value: number;
+  }[];
+
+  @ApiProperty({ description: 'Module features' })
+  features: {
+    feature_key: string;
+    feature_value: string;
+  }[];
+}
+
 export class UserResponseDto {
   @ApiProperty({ description: 'User unique identifier (UUID)' })
   uuid: string;
@@ -56,4 +77,7 @@ export class UserResponseDto {
 
   @ApiPropertyOptional({ description: 'Timestamp of the last failed login attempt', type: String, format: 'date-time', nullable: true })
   last_failed_login_at?: Date | null;
+
+  @ApiPropertyOptional({ description: 'User\'s module access', type: [ModuleAccessDto] })
+  module_access?: ModuleAccessDto[];
 }

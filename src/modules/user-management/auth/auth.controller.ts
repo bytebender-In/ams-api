@@ -34,11 +34,16 @@ import { SendVerificationResponseDto } from './dto/send-verification-response.dt
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { VerifyEmailResponseDto } from './dto/verify-email-response.dto';
 import { UnverifiedEmailResponseDto } from './dto/unverified-email-response.dto';
+import { DatabaseService } from '@/core/database/database.service';
+import { DatabaseHealthResponseDto } from './dto/database-health-response.dto';
 
 @ApiTags('Authentication')
 @Controller('/auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly db: DatabaseService,
+  ) {}
 
   @Post('signin')
   @HttpCode(HttpStatus.OK)
@@ -140,5 +145,17 @@ export class AuthController {
     @Body() verifyEmailDto: VerifyEmailDto,
   ): Promise<VerifyEmailResponseDto> {
     return this.authService.verifyEmail(verifyEmailDto);
+  }
+
+  @Get('health/database')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Check database connection health' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Database connection status',
+    type: DatabaseHealthResponseDto
+  })
+  async checkDatabaseHealth(): Promise<DatabaseHealthResponseDto> {
+    return this.db.testConnection();
   }
 }

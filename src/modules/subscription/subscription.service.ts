@@ -1,229 +1,286 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '@/core/database/prisma.service';
-import { CreateSubscriptionDto } from './dto/create-subscription.dto';
-import { Subscription } from '@prisma/client';
-import { SubscriptionStatus } from '@prisma/client';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { DatabaseService } from '@/core/database/database.service';
+import { generateEntityId, IdPrefix } from '@/common/utils/uid.utils';
 
 @Injectable()
 export class SubscriptionService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
-  async create(createSubscriptionDto: CreateSubscriptionDto): Promise<Subscription> {
-    const { module_access, ...data } = createSubscriptionDto;
-    
-    // Check if plan exists
-    const plan = await this.prisma.plan.findUnique({
-      where: { id: data.plan_id }
-    });
-    
-    if (!plan) {
-      throw new NotFoundException(`Plan with ID ${data.plan_id} not found`);
-    }
-
-    // Create subscription with module access
-    const subscription = await this.prisma.subscription.create({
-      data: {
-        user_id: data.user_id,
-        plan_id: data.plan_id,
-        start_date: new Date(data.start_date),
-        end_date: new Date(data.end_date),
-        status: data.status || SubscriptionStatus.active,
-        module_access: {
-          create: module_access.map(access => ({
-            module_id: access.module_id,
-            is_active: access.is_active ?? true,
-            limits: {
-              create: access.limits.map(limit => ({
-                limit_key: limit.limit_key,
-                limit_value: limit.limit_value
-              }))
-            }
-          }))
-        }
-      },
+  /**
+   * Create a new subscription
+   */
+  async create(userId: string, planId: string) {
+    // Check if plan exists and is active
+    const plan = await this.db.plan.findUnique({
+      where: { puid: planId },
       include: {
-        plan: true,
-        module_access: {
-          include: {
-            limits: true
-          }
-        }
-      }
-    });
-
-    return subscription;
-  }
-
-  async linkOrganization(subscriptionId: number, organizationId: string): Promise<Subscription> {
-    const subscription = await this.findOne(subscriptionId);
-    
-    // Check if user has permission to create more organizations
-    const orgLimit = await this.prisma.subscriptionModuleLimit.findFirst({
-      where: {
-        access: {
-          subscription_id: subscriptionId,
-          module_id: 'organization-management'
-        },
-        limit_key: 'max_organizations'
-      }
-    });
-
-    if (!orgLimit) {
-      throw new NotFoundException('Organization management module not found in subscription');
-    }
-
-    // Count existing organizations for this subscription
-    const orgCount = await this.prisma.subscription.count({
-      where: {
-        user_id: subscription.user_id,
-        organization_id: { not: null } // Count only subscriptions with valid organization IDs
-      }
-    });
-
-    if (orgCount >= orgLimit.limit_value) {
-      throw new Error('Maximum number of organizations reached for this subscription');
-    }
-
-    return this.prisma.subscription.update({
-      where: { id: subscriptionId },
-      data: { organization_id: organizationId },
-      include: {
-        plan: true,
-        module_access: {
-          include: {
-            limits: true,
-            module: true
-          }
-        }
-      }
-    });
-  }
-
-  async findAll(): Promise<Subscription[]> {
-    return this.prisma.subscription.findMany({
-      include: {
-        plan: true,
-      },
-    });
-  }
-
-  async findOne(id: number): Promise<Subscription> {
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { id },
-      include: {
-        plan: true,
-      },
-    });
-
-    if (!subscription) {
-      throw new NotFoundException(`Subscription with ID ${id} not found`);
-    }
-
-    return subscription;
-  }
-
-  async findByUser(userId: string): Promise<Subscription[]> {
-    return this.prisma.subscription.findMany({
-      where: { user_id: userId },
-      include: {
-        plan: true,
-      },
-    });
-  }
-
-  async findByOrganization(organizationId: string): Promise<Subscription[]> {
-    return this.prisma.subscription.findMany({
-      where: { organization_id: organizationId },
-      include: {
-        plan: true,
-      },
-    });
-  }
-
-  async update(id: number, updateSubscriptionDto: Partial<CreateSubscriptionDto>): Promise<Subscription> {
-    await this.findOne(id); // Check if subscription exists
-
-    const data: any = { ...updateSubscriptionDto };
-    if (updateSubscriptionDto.start_date) {
-      data.start_date = new Date(updateSubscriptionDto.start_date);
-    }
-    if (updateSubscriptionDto.end_date) {
-      data.end_date = new Date(updateSubscriptionDto.end_date);
-    }
-
-    return this.prisma.subscription.update({
-      where: { id },
-      data,
-      include: {
-        plan: true,
-      },
-    });
-  }
-
-  async remove(id: number): Promise<Subscription> {
-    await this.findOne(id); // Check if subscription exists
-
-    return this.prisma.subscription.delete({
-      where: { id },
-      include: {
-        plan: true,
-      },
-    });
-  }
-
-  async getAvailableModules(subscriptionId: number) {
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { id: subscriptionId },
-      include: {
-        module_access: {
+        plan_features: true,
+        plan_limits: true,
+        accesses: {
           include: {
             module: true,
-            limits: true
+            module_limits: true,
+            module_features: true
           }
         }
       }
     });
 
-    if (!subscription) {
-      throw new NotFoundException(`Subscription with ID ${subscriptionId} not found`);
+    if (!plan) {
+      throw new NotFoundException(`Plan with ID ${planId} not found`);
     }
 
-    return subscription.module_access.map(access => ({
-      module_id: access.module_id,
-      module_name: access.module.name,
-      is_active: access.is_active,
-      limits: access.limits.map(limit => ({
-        key: limit.limit_key,
-        value: limit.limit_value
-      }))
-    }));
-  }
+    if (!plan.is_active) {
+      throw new BadRequestException('This plan is not active');
+    }
 
-  async checkModuleAccess(subscriptionId: number, moduleId: string) {
-    const access = await this.prisma.moduleAccess.findFirst({
+    // Check if user has any active subscriptions
+    const activeSubscriptions = await this.db.subscription.findMany({
       where: {
-        subscription_id: subscriptionId,
-        module_id: moduleId,
-        is_active: true
+        user_id: userId,
+        status: 'active',
+        end_date: {
+          gt: new Date() // Only check subscriptions that haven't expired
+        }
       },
       include: {
-        limits: true
+        plan: true
       }
     });
 
-    if (!access) {
-      return {
-        hasAccess: false,
-        message: 'Module not available in subscription'
+    // If user has active subscriptions, cancel them (upgrade scenario)
+    if (activeSubscriptions.length > 0) {
+      for (const subscription of activeSubscriptions) {
+        await this.db.subscription.update({
+          where: { suid: subscription.suid },
+          data: { 
+            status: 'cancelled',
+            end_date: new Date() // End the subscription immediately
+          }
+        });
+      }
+    }
+
+    // Calculate subscription dates
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + (plan.validity_days ?? plan.duration));
+
+    // Create subscription with limits and module access
+    const subscriptionData: any = {
+      suid: generateEntityId(IdPrefix.SUBSCRIPTION),
+      user_id: userId,
+      plan_id: planId,
+      start_date: startDate,
+      end_date: endDate,
+      status: 'active',
+      region: 'global',
+      subscription_limits: {
+        create: plan.plan_limits.map(limit => ({
+          limit_type: limit.limit_type,
+          limit_value: limit.limit_value,
+          region: limit.region
+        }))
+      }
+    };
+
+    // Create module access from plan features
+    if (plan.plan_features && plan.plan_features.length > 0) {
+      const moduleAccessMap = new Map();
+      
+      // Group features by module
+      plan.plan_features.forEach(feature => {
+        if (feature.module_id) {
+          if (!moduleAccessMap.has(feature.module_id)) {
+            moduleAccessMap.set(feature.module_id, {
+              module_id: feature.module_id,
+              is_active: true,
+              region: feature.region || 'global',
+              module_features: {
+                create: []
+              }
+            });
+          }
+          moduleAccessMap.get(feature.module_id).module_features.create.push({
+            feature_key: feature.feature_type,
+            feature_value: feature.value || feature.is_enabled ? 'true' : 'false'
+          });
+        }
+      });
+
+      // Convert map to array for create
+      subscriptionData.accesses = {
+        create: Array.from(moduleAccessMap.values())
       };
     }
 
-    return {
-      hasAccess: true,
-      limits: access.limits.reduce((acc, limit) => ({
-        ...acc,
-        [limit.limit_key]: limit.limit_value
-      }), {})
-    };
+    const subscription = await this.db.subscription.create({
+      data: subscriptionData,
+      include: {
+        plan: true,
+        subscription_limits: true,
+        accesses: {
+          include: {
+            module: true,
+            module_limits: true,
+            module_features: true
+          }
+        }
+      }
+    });
+
+    return subscription;
+  }
+
+  /**
+   * Get subscription by ID
+   */
+  async findOne(suid: string) {
+    const subscription = await this.db.subscription.findUnique({
+      where: { suid },
+      include: {
+        plan: true,
+        subscription_limits: true,
+        accesses: {
+          include: {
+            module: true,
+            module_limits: true,
+            module_features: true
+          }
+        }
+      }
+    });
+
+    if (!subscription) {
+      throw new NotFoundException(`Subscription with ID ${suid} not found`);
+    }
+
+    return subscription;
+  }
+
+  /**
+   * Get all subscriptions for a user
+   */
+  async findByUser(userId: string) {
+    return this.db.subscription.findMany({
+      where: { user_id: userId },
+      include: {
+        plan: true,
+        subscription_limits: true,
+        accesses: {
+          include: {
+            module: true,
+            module_limits: true,
+            module_features: true
+          }
+        }
+      }
+    });
+  }
+
+  /**
+   * Check if subscription is valid
+   */
+  async isValid(suid: string): Promise<boolean> {
+    const subscription = await this.findOne(suid);
+    
+    if (subscription.status !== 'active') {
+      return false;
+    }
+
+    const now = new Date();
+    return now >= subscription.start_date && now <= subscription.end_date;
+  }
+
+  /**
+   * Cancel subscription
+   */
+  async cancel(suid: string) {
+    const subscription = await this.findOne(suid);
+
+    if (subscription.status !== 'active') {
+      throw new BadRequestException('Subscription is not active');
+    }
+
+    return this.db.subscription.update({
+      where: { suid },
+      data: { status: 'cancelled' },
+      include: {
+        plan: true,
+        subscription_limits: true,
+        accesses: {
+          include: {
+            module: true,
+            module_limits: true,
+            module_features: true
+          }
+        }
+      }
+    });
+  }
+
+  /**
+   * Renew subscription
+   */
+  async renew(suid: string) {
+    const subscription = await this.findOne(suid);
+    const plan = subscription.plan;
+
+    if (subscription.status === 'active') {
+      throw new BadRequestException('Subscription is already active');
+    }
+
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + (plan.validity_days ?? plan.duration));
+
+    return this.db.subscription.update({
+      where: { suid },
+      data: {
+        start_date: startDate,
+        end_date: endDate,
+        status: 'active'
+      },
+      include: {
+        plan: true,
+        subscription_limits: true,
+        accesses: {
+          include: {
+            module: true,
+            module_limits: true,
+            module_features: true
+          }
+        }
+      }
+    });
+  }
+
+  /**
+   * Get subscription limits
+   */
+  async getLimits(suid: string) {
+    const subscription = await this.findOne(suid);
+    return subscription.subscription_limits;
+  }
+
+  /**
+   * Check if subscription has access to a feature
+   */
+  async hasFeatureAccess(suid: string, featureType: string): Promise<boolean> {
+    const subscription = await this.findOne(suid);
+    
+    if (!await this.isValid(suid)) {
+      return false;
+    }
+
+    const feature = await this.db.planFeature.findFirst({
+      where: {
+        plan_id: subscription.plan_id,
+        feature_type: featureType,
+        is_enabled: true
+      }
+    });
+
+    return !!feature;
   }
 } 

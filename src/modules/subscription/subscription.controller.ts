@@ -1,139 +1,179 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpStatus, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, HttpStatus, HttpCode, Req, UnauthorizedException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
 import { SubscriptionService } from './subscription.service';
-import { CreateSubscriptionDto } from './dto/create-subscription.dto';
-import { ApiTags, ApiOperation, ApiResponse as SwaggerResponse } from '@nestjs/swagger';
-import { SubscriptionResponseDto } from './dto/subscription-response.dto';
-import { ApiResponse } from '@/common/interfaces/api-response.interface';
+import { CreateSubscriptionDto, SubscriptionResponseDto } from './dto/subscription.dto';
+import { Auth } from '../user-management/auth/decorators/auth.decorator';
+import { Request } from 'express';
 
-@ApiTags('subscriptions')
+interface RequestWithUser extends Request {
+  user: {
+    uuid: string;
+    [key: string]: any;
+  };
+}
+
+@ApiTags('Subscriptions')
 @Controller('subscriptions')
 export class SubscriptionController {
   constructor(private readonly subscriptionService: SubscriptionService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a new subscription' })
-  @SwaggerResponse({
+  @Auth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ 
+    summary: 'Create a new subscription',
+    description: 'Creates a new subscription for a user to a plan'
+  })
+  @ApiBody({ 
+    type: CreateSubscriptionDto,
+    description: 'The data for creating a new subscription'
+  })
+  @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'The subscription has been successfully created.',
-    type: SubscriptionResponseDto,
+    type: SubscriptionResponseDto
   })
-  async create(@Body() createSubscriptionDto: CreateSubscriptionDto): Promise<ApiResponse<SubscriptionResponseDto>> {
-    const subscription = await this.subscriptionService.create(createSubscriptionDto);
-    return {
-      success: true,
-      message: 'Subscription created successfully',
-      data: subscription,
-    };
-  }
-
-  @Get()
-  @ApiOperation({ summary: 'Get all subscriptions' })
-  @SwaggerResponse({
-    status: HttpStatus.OK,
-    description: 'Return all subscriptions.',
-    type: [SubscriptionResponseDto],
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'The provided data is invalid.'
   })
-  async findAll(
-    @Query('userId') userId?: string,
-    @Query('organizationId') organizationId?: string,
-  ): Promise<ApiResponse<SubscriptionResponseDto[]>> {
-    let subscriptions;
-    if (userId) {
-      subscriptions = await this.subscriptionService.findByUser(userId);
-    } else if (organizationId) {
-      subscriptions = await this.subscriptionService.findByOrganization(organizationId);
-    } else {
-      subscriptions = await this.subscriptionService.findAll();
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'The plan was not found.'
+  })
+  async create(
+    @Req() req: RequestWithUser,
+    @Body() createSubscriptionDto: CreateSubscriptionDto
+  ): Promise<SubscriptionResponseDto> {
+    if (!req.user?.uuid) {
+      throw new UnauthorizedException('User not authenticated');
     }
-
-    return {
-      success: true,
-      message: 'Subscriptions retrieved successfully',
-      data: subscriptions,
-    };
+    return this.subscriptionService.create(
+      req.user.uuid,
+      createSubscriptionDto.plan_id
+    );
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get a subscription by id' })
-  @SwaggerResponse({
+  @Get(':suid')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Get subscription by ID',
+    description: 'Retrieves a specific subscription by its ID'
+  })
+  @ApiParam({
+    name: 'suid',
+    description: 'The unique identifier of the subscription',
+    type: String
+  })
+  @ApiResponse({
     status: HttpStatus.OK,
     description: 'Return the subscription.',
-    type: SubscriptionResponseDto,
+    type: SubscriptionResponseDto
   })
-  async findOne(@Param('id') id: string): Promise<ApiResponse<SubscriptionResponseDto>> {
-    const subscription = await this.subscriptionService.findOne(+id);
-    return {
-      success: true,
-      message: 'Subscription retrieved successfully',
-      data: subscription,
-    };
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'The subscription was not found.'
+  })
+  async findOne(@Param('suid') suid: string): Promise<SubscriptionResponseDto> {
+    return this.subscriptionService.findOne(suid);
   }
 
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update a subscription' })
-  @SwaggerResponse({
-    status: HttpStatus.OK,
-    description: 'The subscription has been successfully updated.',
-    type: SubscriptionResponseDto,
+  @Get('user/:userId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Get all subscriptions for a user',
+    description: 'Retrieves all subscriptions for a specific user'
   })
-  async update(
-    @Param('id') id: string,
-    @Body() updateSubscriptionDto: Partial<CreateSubscriptionDto>,
-  ): Promise<ApiResponse<SubscriptionResponseDto>> {
-    const subscription = await this.subscriptionService.update(+id, updateSubscriptionDto);
-    return {
-      success: true,
-      message: 'Subscription updated successfully',
-      data: subscription,
-    };
+  @ApiParam({
+    name: 'userId',
+    description: 'The unique identifier of the user',
+    type: String
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Return all subscriptions for the user.',
+    type: [SubscriptionResponseDto]
+  })
+  async findByUser(@Param('userId') userId: string): Promise<SubscriptionResponseDto[]> {
+    return this.subscriptionService.findByUser(userId);
   }
 
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete a subscription' })
-  @SwaggerResponse({
-    status: HttpStatus.OK,
-    description: 'The subscription has been successfully deleted.',
-    type: SubscriptionResponseDto,
+  @Post(':suid/cancel')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Cancel subscription',
+    description: 'Cancels an active subscription'
   })
-  async remove(@Param('id') id: string): Promise<ApiResponse<SubscriptionResponseDto>> {
-    const subscription = await this.subscriptionService.remove(+id);
-    return {
-      success: true,
-      message: 'Subscription deleted successfully',
-      data: subscription,
-    };
+  @ApiParam({
+    name: 'suid',
+    description: 'The unique identifier of the subscription',
+    type: String
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'The subscription has been successfully cancelled.',
+    type: SubscriptionResponseDto
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'The subscription is not active.'
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'The subscription was not found.'
+  })
+  async cancel(@Param('suid') suid: string): Promise<SubscriptionResponseDto> {
+    return this.subscriptionService.cancel(suid);
   }
 
-  @Get(':id/modules')
-  @ApiOperation({ summary: 'Get available modules in subscription' })
-  @SwaggerResponse({
-    status: HttpStatus.OK,
-    description: 'Return all available modules and their limits.',
+  @Post(':suid/renew')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Renew subscription',
+    description: 'Renews an expired or cancelled subscription'
   })
-  async getAvailableModules(@Param('id') id: string): Promise<ApiResponse<any>> {
-    const modules = await this.subscriptionService.getAvailableModules(+id);
-    return {
-      success: true,
-      message: 'Available modules retrieved successfully',
-      data: modules,
-    };
+  @ApiParam({
+    name: 'suid',
+    description: 'The unique identifier of the subscription',
+    type: String
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'The subscription has been successfully renewed.',
+    type: SubscriptionResponseDto
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'The subscription is already active.'
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'The subscription was not found.'
+  })
+  async renew(@Param('suid') suid: string): Promise<SubscriptionResponseDto> {
+    return this.subscriptionService.renew(suid);
   }
 
-  @Get(':id/modules/:moduleId')
-  @ApiOperation({ summary: 'Check access to specific module' })
-  @SwaggerResponse({
-    status: HttpStatus.OK,
-    description: 'Return module access status and limits.',
+  @Get(':suid/limits')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Get subscription limits',
+    description: 'Retrieves all limits for a specific subscription'
   })
-  async checkModuleAccess(
-    @Param('id') id: string,
-    @Param('moduleId') moduleId: string,
-  ): Promise<ApiResponse<any>> {
-    const access = await this.subscriptionService.checkModuleAccess(+id, moduleId);
-    return {
-      success: true,
-      message: 'Module access checked successfully',
-      data: access,
-    };
+  @ApiParam({
+    name: 'suid',
+    description: 'The unique identifier of the subscription',
+    type: String
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Return all limits for the subscription.'
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'The subscription was not found.'
+  })
+  async getLimits(@Param('suid') suid: string) {
+    return this.subscriptionService.getLimits(suid);
   }
 } 

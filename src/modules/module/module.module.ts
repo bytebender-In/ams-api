@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
-import { ModuleService } from './module.service';
+import { ModuleTypeController } from './module-type/module-type.controller';
+import { ModuleTypeService } from './module-type/module-type.service';
 import { ModuleController } from './module.controller';
-import { ModuleFeatureService } from './module-feature.service';
+import { ModuleService } from './module.service';
 import { ModuleFeatureController } from './module-feature.controller';
-import { PrismaService } from '@/core/database/prisma.service';
+import { ModuleFeatureService } from './module-feature.service';
 
 @Module({
-  controllers: [ModuleController, ModuleFeatureController],
-  providers: [ModuleService, ModuleFeatureService, PrismaService],
-  exports: [ModuleService, ModuleFeatureService],
+  controllers: [ModuleTypeController, ModuleController, ModuleFeatureController],
+  providers: [ModuleTypeService, ModuleService, ModuleFeatureService],
+  exports: [ModuleTypeService, ModuleService, ModuleFeatureService],
 })
-export class ModuleModule {} 
+export class ModuleModule {}
