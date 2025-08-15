@@ -5,8 +5,11 @@ import { CommonModule } from './common/common.module';
 import { UserModule } from './modules/user-management/user/user.module';
 import { ConfigModule } from '@nestjs/config';
 import { UserManagementModule } from './modules/user-management/user-management.module';
-import { PrismaService } from './core/database/prisma.service';
 import authConfig from './common/config/auth.config';
+import { DocumentationModule } from './modules/documentation/documentation.module';
+import { ModuleModule } from './modules/module/module.module';
+import { PlanModule } from './modules/plan/plan.module';
+import { SubscriptionModule } from './modules/subscription/subscription.module';
 
 @Module({
   imports: [
@@ -14,13 +17,17 @@ import authConfig from './common/config/auth.config';
       isGlobal: true,
       load: [authConfig],
     }),
-    AuthModule,
     DatabaseModule,
     CommonModule,
+    AuthModule,
     UserModule,
     UserManagementModule,
+    ModuleModule,
+    DocumentationModule,
+    PlanModule,
+    SubscriptionModule,
   ],
   controllers: [],
-  providers: [PrismaService],
+  providers: [],
 })
 export class AppModule {}

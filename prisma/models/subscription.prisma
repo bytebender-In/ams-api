@@ -1,26 +1,88 @@
-model Subscription {
-  id         Int                @id @default(autoincrement())
-  suid       String             @unique @default(uuid())
-  user_id    Int
-  plan_id    Int
-  start_date DateTime
-  end_date   DateTime
-  status     SubscriptionStatus @default(active)
-  created_at DateTime           @default(now())
-  updated_at DateTime           @updatedAt
-  plan       Plan               @relation(fields: [plan_id], references: [id])
-}
-
 model Plan {
-  id            Int            @id @default(autoincrement())
+  puid          String         @id @default(uuid())
   name          String         @unique
   description   String?
-  content       String?
   price         Float
-  duration      Int
+  currency      String         @default("USD")
+  duration      Int // in days
+  interval      String // monthly, yearly, etc.
+  validity_days Int?
+  is_active     Boolean        @default(true)
+  module_id     String?
+  module        Module?        @relation(fields: [module_id], references: [mouid], onDelete: SetNull)
   created_at    DateTime       @default(now())
   updated_at    DateTime       @updatedAt
-  subscriptions Subscription[]
+  subscriptions Subscription[] @relation("PlanSubscriptions")
+  accesses      ModuleAccess[] @relation("PlanAccesses")
+  plan_limits   PlanLimit[]    @relation("PlanLimits")
+  plan_features PlanFeature[]  @relation("PlanFeatures")
+
+  @@index([module_id])
+}
+
+model Subscription {
+  suid                String              @id @default(uuid())
+  user_id             String
+  plan_id             String
+  start_date          DateTime
+  end_date            DateTime
+  status              SubscriptionStatus  @default(active)
+  region              String?
+  created_at          DateTime            @default(now())
+  updated_at          DateTime            @updatedAt
+  plan                Plan                @relation("PlanSubscriptions", fields: [plan_id], references: [puid], onDelete: Restrict)
+  accesses            ModuleAccess[]      @relation("SubscriptionAccesses")
+  subscription_limits SubscriptionLimit[] @relation("SubscriptionLimits")
+
+  @@index([user_id])
+  @@index([plan_id])
+  @@index([status])
+}
+
+model PlanLimit {
+  id          Int      @id @default(autoincrement())
+  plan_id     String
+  limit_type  String // e.g., "max_users", "max_orgs"
+  limit_value Int
+  region      String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  plan        Plan     @relation("PlanLimits", fields: [plan_id], references: [puid], onDelete: Cascade)
+
+  @@unique([plan_id, limit_type, region])
+  @@index([plan_id])
+}
+
+model SubscriptionLimit {
+  id              Int          @id @default(autoincrement())
+  subscription_id String
+  limit_type      String
+  limit_value     Int
+  region          String?
+  created_at      DateTime     @default(now())
+  updated_at      DateTime     @updatedAt
+  subscription    Subscription @relation("SubscriptionLimits", fields: [subscription_id], references: [suid], onDelete: Cascade)
+
+  @@unique([subscription_id, limit_type, region])
+  @@index([subscription_id])
+}
+
+model PlanFeature {
+  id           Int      @id @default(autoincrement())
+  plan_id      String
+  feature_type String
+  value        String?
+  is_enabled   Boolean  @default(true)
+  region       String?
+  module_id    String?
+  module       Module?  @relation(fields: [module_id], references: [mouid], onDelete: SetNull)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  plan         Plan     @relation("PlanFeatures", fields: [plan_id], references: [puid], onDelete: Cascade)
+
+  @@unique([plan_id, feature_type, region])
+  @@index([plan_id])
+  @@index([module_id])
 }
 
 enum SubscriptionStatus {

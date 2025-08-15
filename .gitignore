@@ -399,3 +399,4 @@ test-prisma.ts
 # prisma/migrations/
 prisma/dev.db
 generated/
+generated/prisma/

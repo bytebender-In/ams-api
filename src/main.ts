@@ -1,44 +1,93 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { PrismaClientExceptionFilter } from './core/database/prisma-client-exception.filter';
-import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
-import { CustomValidationPipe } from './common/pipe/custom-validation.pipe';
-import { ResponseInterceptor } from './common/interceptor/response.interceptor';
+import { ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { PrismaService } from './core/database/prisma.service';
+import { join } from 'path';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { Response, Request } from 'express';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix('v1');
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // Serve static files
+  app.useStaticAssets(join(__dirname, '..', 'public'));
+
+  // Enable CORS
+  app.enableCors({
+    origin: 'http://localhost:5173',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
+
+  // Proxy /documents requests to Nextra service
+  app.use('/documents', createProxyMiddleware({
+    target: 'http://localhost:3001',
+    changeOrigin: true,
+    pathRewrite: {
+      '^/documents': '/documents',
+    },
+  }));
+
+  // Global validation pipe
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    transform: true,
+    forbidNonWhitelisted: true,
+  }));
+
+  // Global exception filter
+  app.useGlobalFilters(new HttpExceptionFilter());
+
+  // Swagger configuration
   const config = new DocumentBuilder()
-    .setTitle('AMS API')
-    .setDescription('API documentation for Adaptive Management System')
+    .setTitle('Adaptive Management System API')
+    .setDescription('API documentation for the Adaptive Management System')
     .setVersion('1.0')
-    .addTag('User Management')
     .addBearerAuth()
     .build();
-
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);
-
-  app.useGlobalFilters(new PrismaClientExceptionFilter());
-  app.useGlobalPipes(new CustomValidationPipe());
-  app.useGlobalFilters(new GlobalExceptionFilter());
-  app.useGlobalInterceptors(new ResponseInterceptor());
-  app.useLogger(['debug', 'error', 'fatal', 'log', 'verbose', 'warn']);
+  SwaggerModule.setup('docs', app, document, {
+    customSiteTitle: 'AMS API Documentation',
+    customfavIcon: '/favicon.ico',
+    customCss: '.swagger-ui .topbar { display: none }',
+    swaggerOptions: {
+      persistAuthorization: true,
+      filter: true,
+      showRequestDuration: true,
+      docExpansion: 'none',
+      tagsSorter: 'alpha',
+      operationsSorter: 'alpha',
+    },
+  });
 
   // Get PrismaService instance
   const prismaService = app.get(PrismaService);
 
   // Simple /health route for health check (like Render, Docker, etc.)
-  app.getHttpAdapter().get('/health', async (_, res) => {
+  app.getHttpAdapter().get('/health', async (_, res: Response) => {
     const dbStatus = await prismaService.checkConnection();
-    res.json({
+    res.status(200).json({
       status: 'OK',
       database: dbStatus ? 'connected' : 'disconnected',
       timestamp: new Date().toISOString(),
     });
+  });
+
+  // Serve markdown and MDX documents
+  app.getHttpAdapter().get('/document/:filename', async (req: Request, res: Response) => {
+    const filename = req.params.filename;
+    const filePath = join(__dirname, '..', 'docs', filename);
+    
+    try {
+      const fileContent = await import('fs/promises').then(fs => fs.readFile(filePath, 'utf-8'));
+      res.setHeader('Content-Type', 'text/markdown');
+      res.send(fileContent);
+    } catch (error) {
+      res.status(404).json({ error: 'Document not found' });
+    }
   });
 
   const port = process.env.PORT || 3000;
