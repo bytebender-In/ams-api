@@ -22,6 +22,7 @@ RUN yarn run build
 
 # Verify build output exists and show contents
 RUN ls -la dist/
+RUN ls -la dist/src/
 
 # Production stage
 FROM node:20-alpine
@@ -44,6 +45,7 @@ COPY --from=builder /app/dist ./dist
 
 # Verify files are copied correctly
 RUN ls -la dist/
+RUN ls -la dist/src/
 
 # Set environment variables
 ENV NODE_ENV=production
@@ -53,4 +55,4 @@ ENV PORT=3000
 EXPOSE 3000
 
 # Start the app
-CMD ["node", "dist/main"]
+CMD ["node", "dist/src/main"]
