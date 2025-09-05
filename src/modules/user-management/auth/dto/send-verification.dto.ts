@@ -1,23 +1,24 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { DeliveryMethod, VerificationType } from '@prisma/client';
-import { IsEmail, IsEnum, IsNotEmpty, IsOptional, Matches } from 'class-validator';
+import { IsEmail, IsEnum, IsNotEmpty, IsOptional, Matches, IsString } from 'class-validator';
 
 export class SendVerificationDto {
   @ApiProperty({
-    enum: VerificationType,
-    example: VerificationType.EMAIL,
+    type: String,
+    example: 'EMAIL',
     description: 'Type of verification (EMAIL or PHONE)'
   })
-  @IsEnum(VerificationType)
-  verificationType: VerificationType;
+  @IsString()
+  @IsNotEmpty()
+  verificationType: string;
 
   @ApiProperty({
-    enum: DeliveryMethod,
-    example: DeliveryMethod.OTP,
+    type: String,
+    example: 'OTP',
     description: 'Method of verification (OTP or LINK)'
   })
-  @IsEnum(DeliveryMethod)
-  method: DeliveryMethod;
+  @IsString()
+  @IsNotEmpty()
+  method: string;
 
   @ApiProperty({
     example: 'user@example.com',

@@ -63,7 +63,7 @@ export class AuthService {
     const { password, email, username, ...userData } = createUserDto;
 
     // Check if email already exists
-    const existingUserByEmail = await this.prisma.user.findUnique({
+    const existingUserByEmail = await this.prisma.profile.findUnique({
       where: { email },
     });
 
@@ -73,7 +73,7 @@ export class AuthService {
 
     // Check if username already exists (only if username is provided)
     if (username) {
-      const existingUserByUsername = await this.prisma.user.findUnique({
+      const existingUserByUsername = await this.prisma.profile.findUnique({
         where: { username },
       });
 
@@ -86,7 +86,7 @@ export class AuthService {
     const hashedPassword = await hashPassword(password);
 
     // Create user in DB
-    const user = await this.prisma.user.create({
+    const user = await this.prisma.profile.create({
       data: {
         email,
         username,
@@ -149,7 +149,7 @@ export class AuthService {
   async signin(loginDto: LoginDto): Promise<AuthResponseDto> {
     const { identifier, password, device, browser, ipAddress } = loginDto;
   
-    const user = await this.prisma.user.findFirst({
+    const user = await this.prisma.profile.findFirst({
       where: {
         OR: [
           { email: identifier },
@@ -320,7 +320,7 @@ export class AuthService {
     const { identifier, verificationType } = dto;
 
     // Find user by identifier
-    const user = await this.prisma.user.findFirst({
+    const user = await this.prisma.profile.findFirst({
       where: {
         OR: [
           { email: identifier },
@@ -419,7 +419,7 @@ export class AuthService {
     }
 
     // Update user's email verification status
-    await this.prisma.user.update({
+    await this.prisma.profile.update({
       where: { uuid: verification.userId },
       data: { email_verified: true },
     });
@@ -437,7 +437,7 @@ export class AuthService {
   }
 
   async validateUser(email: string, password: string): Promise<any> {
-    const user = await this.db.client.user.findUnique({
+    const user = await this.db.client.profile.findUnique({
       where: { email }
     });
 
@@ -466,7 +466,7 @@ export class AuthService {
   }
 
   async getProfile(userId: string) {
-    const user = await this.db.client.user.findUnique({
+    const user = await this.db.client.profile.findUnique({
       where: { uuid: userId }
     });
 

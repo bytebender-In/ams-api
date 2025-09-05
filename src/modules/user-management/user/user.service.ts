@@ -7,7 +7,7 @@ export class UserService {
   constructor(private readonly db: DatabaseService) {}
 
   async findByUuid(uuid: string): Promise<UserResponseDto> {
-    const user = await this.db.client.user.findUnique({
+    const user = await this.db.client.profile.findUnique({
       where: { uuid },
     });
 

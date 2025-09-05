@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { DeliveryMethod, VerificationType } from '@prisma/client';
 
 export class SendVerificationResponseDto {
   @ApiProperty({
@@ -9,18 +8,18 @@ export class SendVerificationResponseDto {
   message: string;
 
   @ApiProperty({
-    enum: VerificationType,
-    example: VerificationType.EMAIL,
+    type: String,
+    example: 'EMAIL',
     description: 'Type of verification (EMAIL or PHONE)'
   })
-  verificationType: VerificationType;
+  verificationType: string;
 
   @ApiProperty({
-    enum: DeliveryMethod,
-    example: DeliveryMethod.OTP,
+    type: String,
+    example: 'OTP',
     description: 'Method used for verification (OTP or LINK)'
   })
-  method: DeliveryMethod;
+  method: string;
 
   @ApiProperty({
     example: 'user@example.com',

@@ -11,7 +11,6 @@ import {
     IsBoolean,
   } from 'class-validator';
   import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Gender, UserStatus } from '@prisma/client';
   
   export class CreateUserDto {
     @ApiProperty({ description: 'User email address', type: String })
@@ -41,9 +40,10 @@ import { Gender, UserStatus } from '@prisma/client';
     @MaxLength(50, { message: 'Last name must be at most 50 characters long' })
     last_name: string;
   
-    @ApiProperty({ description: 'Gender of the user', enum: Gender })
-    @IsEnum(Gender, { message: 'Gender must be one of the allowed values' })
-    gender: Gender;
+    @ApiProperty({ description: 'Gender of the user', type: String })
+    @IsOptional()
+    @IsString({ message: 'Gender must be a string' })
+    gender?: string;
   
     @ApiPropertyOptional({ description: 'Timezone of the user', type: String })
     @IsOptional()
