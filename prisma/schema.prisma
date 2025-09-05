@@ -7,7 +7,7 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-  schemas  = ["user_management", "organization", "subscription", "module"]
+  schemas  = ["user_management", "organization", "subscription", "module", "auth"]
 }
 
 // Include all model files
