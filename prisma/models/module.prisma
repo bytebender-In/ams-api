@@ -4,6 +4,7 @@
 
 // Defines different types of modules (e.g., SCHOOL, HOSPITAL, etc.)
 model ModuleType {
+  @@schema("module")
   motuid      String   @id @default(uuid())
   key         String   @unique
   name        String
@@ -21,6 +22,7 @@ model ModuleType {
 // Each module can have features, access controls, and can be hierarchical
 
 model Module {
+  @@schema("module")
   mouid         String          @id @default(uuid())
   module_key    String          @unique
   name          String
@@ -46,6 +48,7 @@ model Module {
 
 // Features associated with each module
 model ModuleFeature {
+  @@schema("module")
   mofuid        String   @id @default(uuid())
   module_id     String
   feature_key   String
@@ -62,6 +65,7 @@ model ModuleFeature {
 }
 
 model ModuleAccess {
+  @@schema("module")
   id              Int                         @id @default(autoincrement())
   plan_id         String?
   subscription_id String?
@@ -84,6 +88,7 @@ model ModuleAccess {
 }
 
 model SubscriptionModuleLimit {
+  @@schema("module")
   id          Int          @id @default(autoincrement())
   access_id   Int
   limit_key   String
@@ -97,6 +102,7 @@ model SubscriptionModuleLimit {
 }
 
 model SubscriptionModuleFeature {
+  @@schema("module")
   id            Int          @id @default(autoincrement())
   access_id     Int
   feature_key   String

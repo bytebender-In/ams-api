@@ -1,9 +1,10 @@
 model Plan {
+  @@schema("subscription")
   puid          String         @id @default(uuid())
   name          String         @unique
   description   String?
   price         Float
-  currency      String         @default("USD")
+  currency      String         @default("INR")
   duration      Int // in days
   interval      String // monthly, yearly, etc.
   validity_days Int?
@@ -21,12 +22,13 @@ model Plan {
 }
 
 model Subscription {
+  @@schema("subscription")
   suid                String              @id @default(uuid())
   user_id             String
   plan_id             String
   start_date          DateTime
   end_date            DateTime
-  status              SubscriptionStatus  @default(active)
+  status              String              @default("active")
   region              String?
   created_at          DateTime            @default(now())
   updated_at          DateTime            @updatedAt
@@ -40,6 +42,7 @@ model Subscription {
 }
 
 model PlanLimit {
+  @@schema("subscription")
   id          Int      @id @default(autoincrement())
   plan_id     String
   limit_type  String // e.g., "max_users", "max_orgs"
@@ -54,6 +57,7 @@ model PlanLimit {
 }
 
 model SubscriptionLimit {
+  @@schema("subscription")
   id              Int          @id @default(autoincrement())
   subscription_id String
   limit_type      String
@@ -68,6 +72,7 @@ model SubscriptionLimit {
 }
 
 model PlanFeature {
+  @@schema("subscription")
   id           Int      @id @default(autoincrement())
   plan_id      String
   feature_type String
@@ -85,9 +90,3 @@ model PlanFeature {
   @@index([module_id])
 }
 
-enum SubscriptionStatus {
-  active
-  inactive
-  cancelled
-  expired
-}

@@ -1,4 +1,5 @@
-model User {
+model Profile {
+  @@schema("user_management")
   uuid                  String             @id @default(uuid())
   email                 String             @unique
   phone_number          String?            @unique
@@ -7,11 +8,11 @@ model User {
   first_name            String
   last_name             String
   profile_picture       String?
-  gender                Gender?
+  gender                String?
   date_of_birth         DateTime?
   language              String             @default("en")
   timezone              String             @default("UTC")
-  status                UserStatus         @default(active)
+  status                String             @default("active")
   email_verified        Boolean            @default(false)
   phone_verified        Boolean            @default(false)
   last_login_at         DateTime?
@@ -32,24 +33,27 @@ model User {
 }
 
 model UserPermission {
+  @@schema("user_management")
   id            Int        @id @default(autoincrement())
   userId        String
   permission_id Int
   granted_at    DateTime   @default(now())
   permission    Permission @relation(fields: [permission_id], references: [id])
-  user          User       @relation(fields: [userId], references: [uuid])
+  user          Profile    @relation(fields: [userId], references: [uuid])
 }
 
 model UserRole {
+  @@schema("user_management")
   id          Int      @id @default(autoincrement())
   assigned_at DateTime @default(now())
   role_id     Int
   userId      String
   role        Role     @relation(fields: [role_id], references: [id])
-  user        User     @relation(fields: [userId], references: [uuid])
+  user        Profile  @relation(fields: [userId], references: [uuid])
 }
 
 model Role {
+  @@schema("user_management")
   id              Int              @id @default(autoincrement())
   name            String           @unique
   description     String?
@@ -62,6 +66,7 @@ model Role {
 }
 
 model Permission {
+  @@schema("user_management")
   id               Int              @id @default(autoincrement())
   name             String           @unique
   module           String
@@ -76,6 +81,7 @@ model Permission {
 }
 
 model RolePermission {
+  @@schema("user_management")
   id            Int        @id @default(autoincrement())
   permission_id Int
   role_id       Int
@@ -84,10 +90,11 @@ model RolePermission {
 }
 
 model UserVerification {
+  @@schema("user_management")
   uvid             String           @id @default(uuid())
   userId           String
-  verificationType VerificationType // EMAIL or PHONE
-  method           DeliveryMethod // OTP or TOKEN
+  verificationType String // EMAIL or PHONE
+  method           String // OTP or TOKEN
   identifier       String // Email or phone number
 
   code      String // Can be OTP or token
@@ -99,13 +106,14 @@ model UserVerification {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [uuid])
+  user Profile @relation(fields: [userId], references: [uuid])
 
   @@index([userId, verificationType, identifier])
   @@index([code])
 }
 
 model UserSession {
+  @@schema("user_management")
   id           Int       @id @default(autoincrement())
   userId       String
   refreshToken String    @unique
@@ -117,12 +125,13 @@ model UserSession {
   loggedInAt   DateTime  @default(now())
   loggedOutAt  DateTime?
   expiresAt    DateTime
-  user         User      @relation(fields: [userId], references: [uuid])
+  user         Profile   @relation(fields: [userId], references: [uuid])
 
   @@index([userId])
 }
 
 model BlacklistedToken {
+  @@schema("user_management")
   id        String   @id @default(uuid())
   token     String   @unique
   expiresAt DateTime
@@ -132,25 +141,3 @@ model BlacklistedToken {
   @@index([expiresAt])
 }
 
-enum Gender {
-  male
-  female
-  other
-}
-
-enum UserStatus {
-  active
-  inactive
-  suspended
-  deleted
-}
-
-enum VerificationType {
-  EMAIL
-  PHONE
-}
-
-enum DeliveryMethod {
-  OTP
-  TOKEN
-}
