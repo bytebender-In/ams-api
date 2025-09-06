@@ -6,6 +6,7 @@ import authConfig from './common/config/auth.config';
 import { ModuleModule } from './modules/module/module.module';
 import { PlanModule } from './modules/plan/plan.module';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
+import { UserManagementModule } from './modules/user-management/user-management.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { SubscriptionModule } from './modules/subscription/subscription.module';
     }),
     DatabaseModule,
     CommonModule,
+    UserManagementModule,
     ModuleModule,
     PlanModule,
     SubscriptionModule,
