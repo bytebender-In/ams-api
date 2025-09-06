@@ -3,7 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-import { PrismaService } from './core/database/prisma.service';
+import { DatabaseService } from './core/database/database.service';
 import { join } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { Response, Request } from 'express';
@@ -23,20 +23,25 @@ async function bootstrap() {
   });
 
   // Proxy /documents requests to Nextra service
-  app.use('/documents', createProxyMiddleware({
-    target: 'http://localhost:3001',
-    changeOrigin: true,
-    pathRewrite: {
-      '^/documents': '/documents',
-    },
-  }));
+  app.use(
+    '/documents',
+    createProxyMiddleware({
+      target: 'http://localhost:3001',
+      changeOrigin: true,
+      pathRewrite: {
+        '^/documents': '/documents',
+      },
+    }),
+  );
 
   // Global validation pipe
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    transform: true,
-    forbidNonWhitelisted: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
 
   // Global exception filter
   app.useGlobalFilters(new HttpExceptionFilter());
@@ -63,12 +68,12 @@ async function bootstrap() {
     },
   });
 
-  // Get PrismaService instance
-  const prismaService = app.get(PrismaService);
+  // Get DatabaseService instance
+  const databaseService = app.get(DatabaseService);
 
   // Simple /health route for health check (like Render, Docker, etc.)
   app.getHttpAdapter().get('/health', async (_, res: Response) => {
-    const dbStatus = await prismaService.checkConnection();
+    const dbStatus = await databaseService.checkConnection();
     res.status(200).json({
       status: 'OK',
       database: dbStatus ? 'connected' : 'disconnected',
@@ -77,18 +82,23 @@ async function bootstrap() {
   });
 
   // Serve markdown and MDX documents
-  app.getHttpAdapter().get('/document/:filename', async (req: Request, res: Response) => {
-    const filename = req.params.filename;
-    const filePath = join(__dirname, '..', 'docs', filename);
-    
-    try {
-      const fileContent = await import('fs/promises').then(fs => fs.readFile(filePath, 'utf-8'));
-      res.setHeader('Content-Type', 'text/markdown');
-      res.send(fileContent);
-    } catch (error) {
-      res.status(404).json({ error: 'Document not found' });
-    }
-  });
+  app
+    .getHttpAdapter()
+    .get('/document/:filename', async (req: Request, res: Response) => {
+      const filename = req.params.filename;
+      const filePath = join(__dirname, '..', 'docs', filename);
+
+      try {
+        const fileContent = await import('fs/promises').then((fs) =>
+          fs.readFile(filePath, 'utf-8'),
+        );
+        res.setHeader('Content-Type', 'text/markdown');
+        res.send(fileContent);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (error) {
+        res.status(404).json({ error: 'Document not found' });
+      }
+    });
 
   const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0');
